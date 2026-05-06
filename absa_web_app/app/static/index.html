@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Restaurant Review ABSA Dashboard</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Managerial Analytics MVP</p>
+      <h1>Restaurant Review ABSA Dashboard</h1>
+      <p class="subtitle">Aspect-Based Sentiment Analysis for restaurants, cafes and quick-service restaurants</p>
+    </div>
+    <div class="header-actions">
+      <button id="themeToggle" class="ghost-button" type="button">Toggle theme</button>
+      <span id="healthBadge" class="status-pill">Checking backend...</span>
+    </div>
+  </header>
+
+  <main class="shell">
+    <aside class="control-panel">
+      <section class="card">
+        <h2>Controls</h2>
+        <label>Model</label>
+        <select id="modelSelect">
+          <option selected>XLM-RoBERTa</option>
+          <option>RuBERT</option>
+        </select>
+
+        <label>Aspect threshold <span id="thresholdValue">0.50</span></label>
+        <input id="thresholdInput" type="range" min="0.1" max="0.9" value="0.5" step="0.05" />
+
+        <h3>SQI weights</h3>
+        <div id="weightsContainer" class="weights-list"></div>
+      </section>
+
+      <section class="card single-test">
+        <h2>Single Review Test</h2>
+        <textarea id="singleText" rows="5">Еда вкусная, персонал вежливый, но заказ ждали слишком долго.</textarea>
+        <input id="singleRating" type="number" min="1" max="5" step="0.5" placeholder="Optional star rating" />
+        <button id="singleAnalyzeBtn" class="primary-button" type="button">Analyze Review</button>
+        <div id="singleResult" class="single-result"></div>
+      </section>
+    </aside>
+
+    <section class="content">
+      <section class="hero card">
+        <div>
+          <p class="eyebrow">Upload Excel</p>
+          <h2>Transform reviews into aspect analytics, SQI, NPS and branch insights</h2>
+          <p>Upload an .xlsx file with a review column. Rating, branch, date, platform and company response columns are optional.</p>
+        </div>
+        <div class="upload-box">
+          <input id="fileInput" type="file" accept=".xlsx" />
+          <button id="analyzeFileBtn" class="primary-button" type="button">Run Analysis</button>
+          <button id="clearBtn" class="ghost-button" type="button">Clear</button>
+        </div>
+        <div id="manualColumnBox" class="manual-box hidden">
+          <p>Review text column was not detected. Select it manually and run again.</p>
+          <select id="manualTextColumn"></select>
+        </div>
+        <div id="loadingBox" class="loading hidden">
+          <div class="spinner"></div>
+          <span id="loadingText">Analyzing reviews...</span>
+        </div>
+        <div id="errorBox" class="error-box hidden"></div>
+      </section>
+
+      <nav class="tabs" aria-label="Dashboard sections">
+        <button class="tab-button active" data-tab="overview">Overview</button>
+        <button class="tab-button" data-tab="praise">What Customers Praise</button>
+        <button class="tab-button" data-tab="problems">Problems</button>
+        <button class="tab-button" data-tab="branches">Branches</button>
+        <button class="tab-button" data-tab="reviews">Reviews</button>
+        <button class="tab-button" data-tab="actions">What To Do</button>
+        <button class="tab-button" data-tab="branchAnalysis">Branch Analysis</button>
+      </nav>
+
+      <section id="emptyState" class="card empty-state">
+        <h2>No analysis yet</h2>
+        <p>Upload an Excel file and click Run Analysis to unlock the dashboard.</p>
+      </section>
+
+      <section id="dashboardArea" class="hidden">
+        <section id="overview" class="tab-panel active"></section>
+        <section id="praise" class="tab-panel"></section>
+        <section id="problems" class="tab-panel"></section>
+        <section id="branches" class="tab-panel"></section>
+        <section id="reviews" class="tab-panel"></section>
+        <section id="actions" class="tab-panel"></section>
+        <section id="branchAnalysis" class="tab-panel"></section>
+      </section>
+    </section>
+  </main>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>

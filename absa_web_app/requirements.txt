@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pandas
+numpy
+torch
+transformers
+safetensors
+openpyxl
+pydantic
+python-multipart
+scikit-learn

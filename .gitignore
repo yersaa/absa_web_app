@@ -1,0 +1,53 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# Local model artifacts and large ML files
+models/
+final_model/
+final_model_rubert/
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.onnx
+
+# Local datasets, notebooks, and generated outputs
+*.xlsx
+*.xls
+*.csv
+*.parquet
+*.ipynb
+outputs/
+reports/
+exports/
+uploads/
+
+# Archived legacy project files
+_archive_unused_*/
+
+# FastAPI/runtime artifacts
+*.log
+*.tmp
+tmp/
+temp/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
