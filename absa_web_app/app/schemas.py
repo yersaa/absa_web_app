@@ -36,6 +36,7 @@ class SingleReviewResponse(BaseModel):
 class ExportReportRequest(BaseModel):
     meta: dict[str, Any] = {}
     predictions: list[dict[str, Any]] = []
+    review_level: list[dict[str, Any]] = []
     dashboard: dict[str, Any] = {}
     aspect_analytics: list[dict[str, Any]] = []
     sentiment_analytics: dict[str, Any] = {}

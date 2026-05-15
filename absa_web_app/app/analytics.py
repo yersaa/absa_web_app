@@ -199,6 +199,56 @@ def aspect_distribution(predictions: pd.DataFrame) -> pd.DataFrame:
     return predictions["aspect_name"].value_counts().rename_axis("aspect_name").reset_index(name="count")
 
 
+def review_level_predictions(predictions: pd.DataFrame) -> pd.DataFrame:
+    rows: list[dict[str, Any]] = []
+    optional_columns = [
+        "star_rating",
+        "venue",
+        "date",
+        "platform",
+        "company_response",
+        "has_company_response",
+        "address",
+    ]
+    sentiment_priority = {"negative": 3, "neutral": 2, "positive": 1}
+
+    for review_id, group in predictions.groupby("review_id", dropna=False):
+        first = group.iloc[0]
+        sentiment_counts = group["sentiment"].value_counts()
+        if sentiment_counts.empty:
+            dominant_sentiment = "neutral"
+        else:
+            dominant_sentiment = sorted(
+                sentiment_counts.items(),
+                key=lambda item: (item[1], sentiment_priority.get(item[0], 0)),
+                reverse=True,
+            )[0][0]
+
+        row = {
+            "review_id": int(review_id),
+            "original_review": first.get("original_review"),
+            "detected_aspects": ", ".join(group["aspect_name"].dropna().astype(str).unique()),
+            "aspect_sentiments": "; ".join(
+                f"{item.aspect_name}: {item.sentiment}"
+                for item in group[["aspect_name", "sentiment"]].drop_duplicates().itertuples(index=False)
+            ),
+            "dominant_sentiment": dominant_sentiment,
+            "negative_aspects": ", ".join(group.loc[group["sentiment"] == "negative", "aspect_name"].dropna().astype(str).unique()),
+            "positive_aspects": ", ".join(group.loc[group["sentiment"] == "positive", "aspect_name"].dropna().astype(str).unique()),
+            "aspect_count": int(group["aspect_id"].nunique()),
+            "average_aspect_confidence": float(group["aspect_confidence"].mean()),
+            "average_sentiment_confidence": float(group["sentiment_confidence"].mean()),
+            "low_confidence_flag": bool(group["low_confidence_flag"].fillna(False).any()),
+        }
+        for column in optional_columns:
+            if column in group.columns:
+                row[column] = first.get(column)
+        rows.append(row)
+
+    result = pd.DataFrame(rows)
+    return result.sort_values("review_id") if not result.empty else result
+
+
 def branch_analytics(predictions: pd.DataFrame, weights: dict[str, float] | None = None) -> pd.DataFrame:
     if "venue" not in predictions.columns:
         return pd.DataFrame()
@@ -329,6 +379,7 @@ def dashboard_summary(predictions: pd.DataFrame, weights: dict[str, float] | Non
 def full_analysis(predictions: pd.DataFrame, weights: dict[str, float] | None = None) -> dict[str, Any]:
     weights = normalize_weights(weights)
     aspect_df = aspect_analytics(predictions)
+    review_df = review_level_predictions(predictions)
     branch_df = branch_analytics(predictions, weights)
     trend_df = monthly_trend(predictions, weights)
     problems_df = problem_areas(predictions)
@@ -352,6 +403,7 @@ def full_analysis(predictions: pd.DataFrame, weights: dict[str, float] | None = 
             "top_branches_best": dataframe_to_records(branch_df.head(3)) if not branch_df.empty else [],
             "top_branches_worst": dataframe_to_records(branch_df.tail(3).sort_values("overall_sqi")) if not branch_df.empty else [],
         },
+        "review_level": dataframe_to_records(review_df),
         "aspect_analytics": dataframe_to_records(aspect_df),
         "sentiment_analytics": sentiment,
         "sqi": {
@@ -378,6 +430,8 @@ def export_excel_report(analysis: dict[str, Any]) -> bytes:
     output = BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         pd.DataFrame(analysis.get("predictions", [])).to_excel(writer, sheet_name="Predictions", index=False)
+        if analysis.get("review_level"):
+            pd.DataFrame(analysis.get("review_level", [])).to_excel(writer, sheet_name="Review Summary", index=False)
         pd.DataFrame(analysis.get("aspect_analytics", [])).to_excel(writer, sheet_name="Aspect Analytics", index=False)
         pd.DataFrame(analysis.get("sentiment_analytics", {}).get("overall", [])).to_excel(writer, sheet_name="Sentiment Summary", index=False)
         sqi_rows = [{"metric": "overall_sqi", "value": analysis.get("sqi", {}).get("overall_sqi"), "status": analysis.get("sqi", {}).get("status")}]

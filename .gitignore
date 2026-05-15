@@ -30,7 +30,6 @@ final_model_rubert/
 *.xls
 *.csv
 *.parquet
-*.ipynb
 outputs/
 reports/
 exports/

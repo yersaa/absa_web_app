@@ -1,19 +1,21 @@
 # Restaurant Review ABSA Web Dashboard
 
-Production-style local web application for Aspect-Based Sentiment Analysis of restaurant, cafe, quick-service restaurant, and fast-food reviews.
+Local production-style web application for Aspect-Based Sentiment Analysis of restaurant, cafe, quick-service restaurant, and fast-food reviews.
 
-The system analyzes Russian, Kazakh, and mixed RU-KZ customer reviews and transforms them into:
+The system loads existing local Hugging Face models, predicts review aspects and aspect-level sentiment, and turns raw reviews into manager-friendly analytics:
 
-- aspect predictions
-- aspect-level sentiment
-- Service Quality Index
-- NPS-like business indicators
-- branch analytics
-- time trends
-- problem areas and strengths
+- aspect-based classification results
+- sentiment analytics
+- Service Quality Index, SQI
+- MVP dashboard metrics
+- problematic aspects
+- positive strengths
+- review-level prediction table
+- venue / branch analytics when a venue column exists
+- time trend analytics when a date column exists
 - downloadable CSV and Excel reports
 
-No training is performed by the app. It only loads existing local Hugging Face model folders.
+The app supports English, Russian, and Kazakh interface labels. It does not train models.
 
 ## Architecture
 
@@ -26,8 +28,8 @@ absa_web_app/
     schemas.py          Pydantic request/response schemas
     static/
       index.html        Frontend markup
-      styles.css        Apple-style responsive dashboard
-      script.js         Fetch API, Canvas charts, tabs, filters
+      styles.css        Responsive Apple-style dashboard
+      script.js         Fetch API, Canvas charts, tabs, filters, language toggle
   requirements.txt
   README.md
 ```
@@ -36,7 +38,7 @@ The frontend uses plain HTML, CSS, and JavaScript. It does not use Streamlit, Gr
 
 ## Model Folders
 
-The requested paths are:
+Expected paths:
 
 ```text
 final_model/aspect_model
@@ -45,7 +47,7 @@ final_model_rubert/aspect_model
 final_model_rubert/sentiment_model
 ```
 
-The app also supports the current project layout:
+The code also supports the current project layout:
 
 ```text
 ../models/final_model/aspect_model
@@ -54,7 +56,7 @@ The app also supports the current project layout:
 ../models/final_model_rubert/sentiment_model
 ```
 
-Each model folder must contain:
+Each model folder must contain at least:
 
 ```text
 config.json
@@ -71,7 +73,7 @@ From `C:\diploma1\absa_web_app`:
 pip install -r requirements.txt
 ```
 
-If you use the existing virtual environment:
+With the existing virtual environment:
 
 ```powershell
 ..\.venv\Scripts\python.exe -m pip install -r requirements.txt
@@ -85,21 +87,21 @@ From `C:\diploma1\absa_web_app`:
 uvicorn app.main:app --reload
 ```
 
-Then open:
-
-```text
-http://127.0.0.1:8000
-```
-
 With the existing virtual environment:
 
 ```powershell
 ..\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
 ```
 
+Then open:
+
+```text
+http://127.0.0.1:8000
+```
+
 ## Expected Excel Format
 
-Upload an `.xlsx` file. Only review text is required.
+Upload an `.xlsx` file. Only the review text column is required.
 
 Supported flexible column names:
 
@@ -112,26 +114,24 @@ Supported flexible column names:
 | Platform | `platform`, `source`, `app`, `website`, `источник`, `платформа` |
 | Company response | `response`, `reply`, `company_response`, `owner_reply`, `ответ`, `ответ компании` |
 
-If the review text column is not detected, the backend returns the available columns and the frontend shows a manual selector.
+If the review text column is not detected, the frontend shows a manual selector.
 
 ## Inference
 
-The backend uses Hugging Face Transformers:
+The backend uses local Hugging Face loading:
 
 ```python
 AutoTokenizer.from_pretrained(local_path, local_files_only=True)
 AutoModelForSequenceClassification.from_pretrained(local_path, local_files_only=True)
 ```
 
-Models are lazy-loaded once per selected model and cached in memory. CUDA is used when available; otherwise CPU is used. The app calls `model.eval()` and uses `torch.no_grad()`.
+Models are lazy-loaded once per selected model and cached in memory. CUDA is used when available; otherwise CPU is used.
 
 Aspect detection is multi-label:
 
 ```text
 sigmoid(logits)
 ```
-
-All aspects above the selected threshold are returned. If none pass the threshold, the top-1 aspect is returned with `low_confidence_flag=true`.
 
 Sentiment classification is multi-class:
 
@@ -145,7 +145,7 @@ Sentiment is predicted per detected aspect. The current code uses an aspect-awar
 Aspect: Food Quality. Review: ...
 ```
 
-This is easy to change in `model_service.py`.
+If your sentiment model was trained only on plain review text, update `build_sentiment_input()` in `app/model_service.py`.
 
 ## Label Mapping
 
@@ -169,7 +169,7 @@ DEFAULT_SENTIMENT_ID_TO_LABEL = {
 
 If sentiment predictions look inverted, check your training label order and update `DEFAULT_SENTIMENT_ID_TO_LABEL` in `app/model_service.py`.
 
-## SQI Calculation
+## SQI
 
 Sentiment score:
 
@@ -185,43 +185,9 @@ For every review-aspect row:
 aspect_score = sentiment_score * sentiment_confidence
 ```
 
-Aspect SQI:
+Aspect SQI is the average aspect score. Overall SQI is a weighted average of aspect SQI values. The browser lets the manager adjust weights, and the backend normalizes them automatically.
 
-```text
-average(aspect_score)
-```
-
-Overall SQI:
-
-```text
-weighted average of aspect SQI values
-```
-
-Default weights:
-
-| Aspect | Weight |
-|---|---:|
-| Food Quality | 0.25 |
-| Staff Service | 0.20 |
-| Wait/Speed | 0.15 |
-| Order Accuracy | 0.10 |
-| Cleanliness/Hygiene | 0.10 |
-| Price/Value | 0.10 |
-| Ambience | 0.05 |
-| Location | 0.05 |
-
-The frontend lets the manager adjust weights. Weights are normalized automatically.
-
-SQI interpretation:
-
-| Score | Meaning |
-|---|---|
-| 0-39 | Critical |
-| 40-59 | Needs Improvement |
-| 60-79 | Good |
-| 80-100 | Excellent |
-
-## NPS Calculation
+## NPS
 
 If star rating exists:
 
@@ -232,12 +198,22 @@ If star rating exists:
 NPS = %promoters - %detractors
 ```
 
-NPS is calculated overall, by branch, and by month when data is available.
+NPS is shown overall, by branch, and by month when data is available.
+
+## Exports
+
+The website supports:
+
+- predictions CSV
+- filtered predictions CSV
+- multi-sheet Excel report
+
+Excel sheets include predictions, review summary, aspect analytics, sentiment summary, SQI summary, branch summary, time trend, problem areas, strengths, and recommendations.
 
 ## Troubleshooting
 
-- `Model folder is missing or incomplete`: verify `model.safetensors` and `config.json` exist in the local model folders.
-- `Review text column was not detected`: select the review text column manually in the browser.
-- CUDA out of memory: use RuBERT or let the backend fall back to CPU.
+- `Model folder is missing or incomplete`: verify `config.json` and `model.safetensors` exist in the local model folders.
+- `Review text column was not detected`: select the text column manually in the browser.
+- CUDA out of memory: select RuBERT or let the backend fall back to CPU.
 - Predictions look inverted: check `DEFAULT_SENTIMENT_ID_TO_LABEL` in `app/model_service.py`.
 - Excel cannot be read: make sure the file is `.xlsx` and not password-protected.

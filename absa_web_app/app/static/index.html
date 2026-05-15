@@ -4,97 +4,180 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Restaurant Review ABSA Dashboard</title>
-  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/styles.css?v=20260514-branch-kpis" />
 </head>
 <body>
-  <header class="topbar">
-    <div>
-      <p class="eyebrow">Managerial Analytics MVP</p>
-      <h1>Restaurant Review ABSA Dashboard</h1>
-      <p class="subtitle">Aspect-Based Sentiment Analysis for restaurants, cafes and quick-service restaurants</p>
+  <div class="mobile-bar">
+    <button id="sidebarToggle" class="icon-button" type="button" aria-label="Open menu">☰</button>
+    <div class="mobile-brand">
+      <span class="brand-mark">A</span>
+      <strong>ABSA Analytics</strong>
     </div>
-    <div class="header-actions">
-      <button id="themeToggle" class="ghost-button" type="button">Toggle theme</button>
-      <span id="healthBadge" class="status-pill">Checking backend...</span>
-    </div>
-  </header>
+  </div>
 
-  <main class="shell">
-    <aside class="control-panel">
-      <section class="card">
-        <h2>Controls</h2>
-        <label>Model</label>
-        <select id="modelSelect">
-          <option selected>XLM-RoBERTa</option>
-          <option>RuBERT</option>
-        </select>
-
-        <label>Aspect threshold <span id="thresholdValue">0.50</span></label>
-        <input id="thresholdInput" type="range" min="0.1" max="0.9" value="0.5" step="0.05" />
-
-        <h3>SQI weights</h3>
-        <div id="weightsContainer" class="weights-list"></div>
-      </section>
-
-      <section class="card single-test">
-        <h2>Single Review Test</h2>
-        <textarea id="singleText" rows="5">Еда вкусная, персонал вежливый, но заказ ждали слишком долго.</textarea>
-        <input id="singleRating" type="number" min="1" max="5" step="0.5" placeholder="Optional star rating" />
-        <button id="singleAnalyzeBtn" class="primary-button" type="button">Analyze Review</button>
-        <div id="singleResult" class="single-result"></div>
-      </section>
-    </aside>
-
-    <section class="content">
-      <section class="hero card">
+  <div class="app-shell">
+    <aside id="sidebar" class="sidebar" aria-label="Primary navigation">
+      <div class="brand-block">
+        <span class="brand-mark">A</span>
         <div>
-          <p class="eyebrow">Upload Excel</p>
-          <h2>Transform reviews into aspect analytics, SQI, NPS and branch insights</h2>
-          <p>Upload an .xlsx file with a review column. Rating, branch, date, platform and company response columns are optional.</p>
+          <strong>ABSA Analytics</strong>
+          <small>ReviewIQ Console</small>
         </div>
-        <div class="upload-box">
-          <input id="fileInput" type="file" accept=".xlsx" />
-          <button id="analyzeFileBtn" class="primary-button" type="button">Run Analysis</button>
-          <button id="clearBtn" class="ghost-button" type="button">Clear</button>
-        </div>
-        <div id="manualColumnBox" class="manual-box hidden">
-          <p>Review text column was not detected. Select it manually and run again.</p>
-          <select id="manualTextColumn"></select>
-        </div>
-        <div id="loadingBox" class="loading hidden">
-          <div class="spinner"></div>
-          <span id="loadingText">Analyzing reviews...</span>
-        </div>
-        <div id="errorBox" class="error-box hidden"></div>
-      </section>
+      </div>
 
-      <nav class="tabs" aria-label="Dashboard sections">
-        <button class="tab-button active" data-tab="overview">Overview</button>
-        <button class="tab-button" data-tab="praise">What Customers Praise</button>
-        <button class="tab-button" data-tab="problems">Problems</button>
-        <button class="tab-button" data-tab="branches">Branches</button>
-        <button class="tab-button" data-tab="reviews">Reviews</button>
-        <button class="tab-button" data-tab="actions">What To Do</button>
-        <button class="tab-button" data-tab="branchAnalysis">Branch Analysis</button>
+      <nav class="side-nav">
+        <p class="nav-heading">Analytics</p>
+        <button class="nav-item tab-button active" data-tab="upload" type="button"><span class="nav-icon">&#9638;</span>Dashboard</button>
+        <button class="nav-item tab-button" data-tab="performance" type="button"><span class="nav-icon">&#9635;</span>Performance</button>
+        <button class="nav-item tab-button" data-tab="trends" type="button"><span class="nav-icon">&#8599;</span>Trends</button>
+
+        <p class="nav-heading">Reviews</p>
+        <button class="nav-item tab-button" data-tab="singleReview" type="button"><span class="nav-icon">&#9671;</span>Single Review Test</button>
+        <button class="nav-item tab-button" data-tab="reviews" data-i18n-key="tabReviews" type="button"><span class="nav-icon">&#9783;</span>Review History</button>
+
+        <p class="nav-heading">Insights</p>
+        <button class="nav-item tab-button" data-tab="aspects" type="button"><span class="nav-icon">&#9678;</span>Aspects</button>
+        <button class="nav-item tab-button" data-tab="praise" data-i18n-key="tabPraise" type="button"><span class="nav-icon">+</span>Sentiment</button>
+        <button class="nav-item tab-button" data-tab="branches" data-i18n-key="tabBranches" type="button"><span class="nav-icon">&#9873;</span>Branches</button>
+        <button class="nav-item tab-button" data-tab="problems" data-i18n-key="tabProblems" type="button"><span class="nav-icon">!</span>Problems</button>
+        <button class="nav-item tab-button" data-tab="branchAnalysis" data-i18n-key="tabBranchAnalysis" type="button"><span class="nav-icon">%</span>SQI</button>
+        <button class="nav-item tab-button" data-tab="nps" type="button"><span class="nav-icon">N</span>NPS</button>
+
+        <p class="nav-heading">Reports</p>
+        <button class="nav-item tab-button" data-tab="actions" data-i18n-key="tabActions" type="button"><span class="nav-icon">&#10003;</span>Recommendations</button>
+        <button class="nav-item tab-button" data-tab="export" type="button"><span class="nav-icon">&#8681;</span>Export</button>
+        <button class="nav-item tab-button" data-tab="settings" type="button"><span class="nav-icon">&#9881;</span>Settings</button>
       </nav>
 
-      <section id="emptyState" class="card empty-state">
-        <h2>No analysis yet</h2>
-        <p>Upload an Excel file and click Run Analysis to unlock the dashboard.</p>
+      <div class="sidebar-footer">
+        <div class="user-card">
+          <div class="avatar">RM</div>
+          <div>
+            <strong>Restaurant Manager</strong>
+            <span>Premium analytics</span>
+          </div>
+        </div>
+        <button class="footer-link" type="button">Logout</button>
+      </div>
+    </aside>
+
+    <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+
+    <main class="main-surface">
+      <header class="dashboard-header">
+        <div class="greeting">
+          <div class="avatar-ring" aria-hidden="true">RM</div>
+          <div>
+            <p id="appEyebrow" class="eyebrow">Managerial analytics</p>
+            <h1 id="appTitle">Welcome Back, Restaurant Manager</h1>
+            <p id="appSubtitle" class="subtitle">Service Quality Analytics Dashboard</p>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <div class="segmented" aria-label="Interface language">
+            <select id="languageSelect" class="language-select">
+              <option value="en">EN</option>
+              <option value="ru">RU</option>
+              <option value="kk">KZ</option>
+            </select>
+          </div>
+          <select id="modelSelect" class="model-select" aria-label="Model">
+            <option selected>XLM-RoBERTa</option>
+            <option>RuBERT</option>
+          </select>
+          <button id="themeToggle" class="ghost-button compact" type="button">Theme</button>
+          <button id="topExportBtn" class="primary-button compact" type="button">Export</button>
+        </div>
+      </header>
+
+      <section id="settingsPanel" class="settings-strip">
+        <div>
+          <label class="control-label"><span id="thresholdLabel">Aspect threshold</span><span id="thresholdValue" class="control-value">0.50</span></label>
+          <input id="thresholdInput" type="range" min="0.1" max="0.9" value="0.5" step="0.05" />
+        </div>
+        <details class="weights-popover" open>
+          <summary id="weightsTitle">SQI weights</summary>
+          <div id="weightsContainer" class="weights-list"></div>
+        </details>
       </section>
 
-      <section id="dashboardArea" class="hidden">
+      <section id="workGrid" class="work-grid">
+        <article id="singleReviewCard" class="card single-review-card">
+          <div class="card-header">
+            <div>
+              <p class="eyebrow">Live model test</p>
+              <h2 id="singleTitle">Analyze Single Review</h2>
+            </div>
+            <span class="mini-badge">Aspect-aware</span>
+          </div>
+          <textarea id="singleText" rows="5">Еда вкусная, персонал вежливый, но заказ ждали слишком долго.</textarea>
+          <div class="input-row">
+            <input id="singleRating" type="number" min="1" max="5" step="0.5" placeholder="Optional star rating" />
+            <button id="singleAnalyzeBtn" class="primary-button" type="button">Analyze Review</button>
+          </div>
+          <div id="singleResult" class="single-result"></div>
+        </article>
+
+        <article id="uploadCard" class="card upload-card">
+          <div class="card-header">
+            <div>
+              <p id="uploadEyebrow" class="eyebrow">Upload Excel</p>
+              <h2 id="uploadTitle">Upload Review Dataset</h2>
+              <p id="uploadSubtitle" class="muted">Upload an .xlsx file with review text. Rating, branch, date, platform, response, and address columns are optional.</p>
+            </div>
+          </div>
+          <label id="uploadDropzone" class="upload-dropzone" for="fileInput">
+            <input id="fileInput" type="file" accept=".xlsx" />
+            <span class="upload-icon">⇧</span>
+            <strong id="fileName">Drop .xlsx file here or browse</strong>
+            <small>Automatic column detection with manual review text fallback</small>
+          </label>
+          <div class="upload-actions">
+            <button id="analyzeFileBtn" class="primary-button" type="button">Run Analysis</button>
+            <button id="clearBtn" class="ghost-button" type="button">Clear</button>
+          </div>
+          <div id="uploadColumnPreview" class="column-preview hidden"></div>
+          <div id="manualColumnBox" class="manual-box hidden">
+            <p id="manualColumnText">Review text column was not detected. Select it manually and run again.</p>
+            <select id="manualTextColumn"></select>
+          </div>
+          <div id="loadingBox" class="loading hidden">
+            <div class="spinner"></div>
+            <span id="loadingText">Analyzing reviews...</span>
+          </div>
+          <div id="errorBox" class="error-box hidden"></div>
+        </article>
+      </section>
+
+      <section id="emptyState" class="empty-state-card">
+        <div class="empty-visual">
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <div>
+          <h2 id="emptyTitle">No analysis yet</h2>
+          <p id="emptySubtitle">Upload an Excel file and click Run Analysis to unlock the dashboard.</p>
+        </div>
+      </section>
+
+      <section id="dashboardArea" class="dashboard-area hidden">
         <section id="overview" class="tab-panel active"></section>
+        <section id="performance" class="tab-panel"></section>
+        <section id="trends" class="tab-panel"></section>
+        <section id="aspects" class="tab-panel"></section>
         <section id="praise" class="tab-panel"></section>
         <section id="problems" class="tab-panel"></section>
         <section id="branches" class="tab-panel"></section>
         <section id="reviews" class="tab-panel"></section>
         <section id="actions" class="tab-panel"></section>
         <section id="branchAnalysis" class="tab-panel"></section>
+        <section id="nps" class="tab-panel"></section>
+        <section id="export" class="tab-panel"></section>
       </section>
-    </section>
-  </main>
+    </main>
+  </div>
 
-  <script src="/static/script.js"></script>
+  <div id="chartTooltip" class="chart-tooltip hidden"></div>
+  <script src="/static/script.js?v=20260514-branch-kpis"></script>
 </body>
 </html>
