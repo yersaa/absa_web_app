@@ -1,219 +1,272 @@
-# Restaurant Review ABSA Web Dashboard
+# Restaurant Review ABSA Service Quality Dashboard
 
-Local production-style web application for Aspect-Based Sentiment Analysis of restaurant, cafe, quick-service restaurant, and fast-food reviews.
+This repository contains an Aspect-Based Sentiment Analysis (ABSA) system for restaurant, cafe, and fast-food customer reviews. The project focuses on Russian, Kazakh, and mixed Russian-Kazakh feedback and converts raw review text into service-quality analytics for restaurant managers.
 
-The system loads existing local Hugging Face models, predicts review aspects and aspect-level sentiment, and turns raw reviews into manager-friendly analytics:
+The system has two main parts:
 
-- aspect-based classification results
-- sentiment analytics
-- Service Quality Index, SQI
-- MVP dashboard metrics
-- problematic aspects
-- positive strengths
-- review-level prediction table
-- venue / branch analytics when a venue column exists
-- time trend analytics when a date column exists
-- downloadable CSV and Excel reports
+- `absa_train_save_streamlit_model.ipynb` - model training, evaluation, fine-tuning, hyperparameter tuning, diagnostics, and model export.
+- `absa_web_app/` - a FastAPI web dashboard that loads saved local Hugging Face models and turns predictions into business analytics.
 
-The app supports English, Russian, and Kazakh interface labels. It does not train models.
+## Features
 
-## Architecture
+- Multi-label aspect detection for:
+  - Food Quality
+  - Staff Service
+  - Wait/Speed
+  - Price/Value
+  - Cleanliness/Hygiene
+  - Order Accuracy
+  - Ambience
+  - Location
+- Aspect-level sentiment classification:
+  - positive
+  - neutral
+  - negative
+- Baseline model comparison:
+  - rule-based baseline
+  - TF-IDF + Logistic Regression
+  - TF-IDF + Linear SVM
+  - XLM-RoBERTa Large
+  - DeepPavlov RuBERT
+- XLM-RoBERTa Large fine-tuning with validation-based model selection.
+- Optional hyperparameter tuning and early stopping based mainly on validation macro-F1.
+- Single-review prediction.
+- Excel upload with automatic column detection.
+- Managerial analytics:
+  - aspect sentiment distribution
+  - Service Quality Index (SQI)
+  - NPS-like indicators
+  - branch comparison
+  - strengths and problem areas
+  - time trends
+  - recommendations and response templates
+- Browser dashboard with HTML, CSS, JavaScript, and Canvas charts.
+- Interface labels in English, Russian, and Kazakh.
+- CSV and multi-sheet Excel export.
 
-```text
-absa_web_app/
-  app/
-    main.py             FastAPI endpoints
-    model_service.py    Local model loading and inference
-    analytics.py        SQI, NPS, branch analytics, trends, report export
-    schemas.py          Pydantic request/response schemas
-    static/
-      index.html        Frontend markup
-      styles.css        Responsive Apple-style dashboard
-      script.js         Fetch API, Canvas charts, tabs, filters, language toggle
-  requirements.txt
-  README.md
-```
-
-The frontend uses plain HTML, CSS, and JavaScript. It does not use Streamlit, Gradio, Dash, React, Vue, Bootstrap, Tailwind, or external chart libraries. Charts are rendered with the native Canvas API.
-
-## Model Folders
-
-Expected paths:
-
-```text
-final_model/aspect_model
-final_model/sentiment_model
-final_model_rubert/aspect_model
-final_model_rubert/sentiment_model
-```
-
-The code also supports the current project layout:
+## Project Structure
 
 ```text
-../models/final_model/aspect_model
-../models/final_model/sentiment_model
-../models/final_model_rubert/aspect_model
-../models/final_model_rubert/sentiment_model
+.
++-- absa_train_save_streamlit_model.ipynb
++-- requirements.txt
++-- dataset_reviews.xlsx                 # local dataset, ignored by Git
++-- models/                              # local trained models, ignored by Git
+|   +-- final_model/
+|   +-- final_model_rubert/
+|   +-- diagnostics/
+|   +-- xlmr_hyperparameter_tuning/
++-- absa_web_app/
+    +-- README.md
+    +-- requirements.txt
+    +-- app/
+        +-- main.py                      # FastAPI endpoints
+        +-- model_service.py             # model loading and inference
+        +-- analytics.py                 # SQI, NPS, trends, exports
+        +-- schemas.py                   # Pydantic schemas
+        +-- static/
+            +-- index.html
+            +-- styles.css
+            +-- script.js
 ```
 
-Each model folder must contain at least:
+## GitHub Artifact Policy
+
+The repository is configured for source code and documentation. Large local artifacts are ignored by `.gitignore`, including:
+
+- `models/`
+- `*.safetensors`
+- `*.bin`
+- `*.pt`
+- `*.xlsx`
+- generated CSV reports
+- virtual environments
+
+This means the trained model files and the Excel dataset are not expected to be pushed to GitHub. To run inference, place trained model artifacts locally in the expected folders or rerun the training notebook.
+
+## Environment Setup
+
+Create and activate a virtual environment from the project root:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+The same dependency list is also available inside `absa_web_app/requirements.txt`.
+
+## Training Workflow
+
+Open and run:
+
+```text
+absa_train_save_streamlit_model.ipynb
+```
+
+The notebook performs:
+
+1. Dataset loading and preprocessing.
+2. Train/validation/test split.
+3. Rule-based and TF-IDF baseline training.
+4. XLM-RoBERTa Large fine-tuning for aspect detection.
+5. XLM-RoBERTa Large fine-tuning for aspect sentiment classification.
+6. Optional DeepPavlov RuBERT comparison.
+7. Hyperparameter tuning and early stopping.
+8. Evaluation with accuracy, precision, recall, F1, macro-F1, and confusion matrix.
+9. Saving local Hugging Face model folders.
+
+Expected model output folders:
+
+```text
+models/final_model/aspect_model/
+models/final_model/sentiment_model/
+models/final_model_rubert/aspect_model/
+models/final_model_rubert/sentiment_model/
+```
+
+Each saved model folder should contain files such as:
 
 ```text
 config.json
 model.safetensors
-tokenizer_config.json
 tokenizer.json
+tokenizer_config.json
 ```
 
-## Install
+## Hyperparameter Tuning
 
-From `C:\diploma1\absa_web_app`:
+The notebook includes optional tuning for XLM-RoBERTa Large. It compares candidate configurations on the validation set and selects the best configuration using validation macro-F1.
 
-```powershell
-pip install -r requirements.txt
-```
+Tuned parameters include:
 
-With the existing virtual environment:
+- learning rate
+- maximum sequence length
+- gradient accumulation
+- weight decay
+- warm-up ratio
+- frozen encoder layers
+- number of epochs
+- early-stopping patience
 
-```powershell
-..\.venv\Scripts\python.exe -m pip install -r requirements.txt
-```
+The test set is used only for final evaluation, not for tuning.
 
-## Run
+## Running the Web Dashboard
 
-From `C:\diploma1\absa_web_app`:
-
-```powershell
-uvicorn app.main:app --reload
-```
-
-With the existing virtual environment:
+Start the FastAPI app from the web app folder:
 
 ```powershell
+cd absa_web_app
 ..\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
 ```
 
-Then open:
+Open:
 
 ```text
 http://127.0.0.1:8000
 ```
 
-## Expected Excel Format
+The app loads local models lazily and caches them in memory. CUDA is used when available; otherwise inference runs on CPU.
 
-Upload an `.xlsx` file. Only the review text column is required.
-
-Supported flexible column names:
-
-| Field | Possible names |
-|---|---|
-| Review text | `review`, `reviews`, `text`, `comment`, `feedback`, `отзыв`, `текст`, `комментарий`, `пікір`, `пікірлер` |
-| Star rating | `rating`, `stars`, `star_rating`, `score`, `оценка`, `рейтинг`, `баға` |
-| Branch / venue | `venue`, `restaurant`, `branch`, `cafe`, `location_name`, `restaurant_name`, `заведение`, `ресторан`, `филиал`, `нүкте` |
-| Date | `date`, `created_at`, `review_date`, `дата`, `күні` |
-| Platform | `platform`, `source`, `app`, `website`, `источник`, `платформа` |
-| Company response | `response`, `reply`, `company_response`, `owner_reply`, `ответ`, `ответ компании` |
-
-If the review text column is not detected, the frontend shows a manual selector.
-
-## Inference
-
-The backend uses local Hugging Face loading:
-
-```python
-AutoTokenizer.from_pretrained(local_path, local_files_only=True)
-AutoModelForSequenceClassification.from_pretrained(local_path, local_files_only=True)
-```
-
-Models are lazy-loaded once per selected model and cached in memory. CUDA is used when available; otherwise CPU is used.
-
-Aspect detection is multi-label:
+## API Endpoints
 
 ```text
-sigmoid(logits)
+GET  /
+GET  /health
+POST /api/analyze-single
+POST /api/analyze-file
+POST /api/export-report
 ```
 
-Sentiment classification is multi-class:
+Example single-review request:
 
-```text
-softmax(logits)
-```
-
-Sentiment is predicted per detected aspect. The current code uses an aspect-aware input template:
-
-```text
-Aspect: Food Quality. Review: ...
-```
-
-If your sentiment model was trained only on plain review text, update `build_sentiment_input()` in `app/model_service.py`.
-
-## Label Mapping
-
-The app first reads `model.config.id2label`.
-
-Fallback aspect order:
-
-```python
-DEFAULT_ASPECT_ID_ORDER = ["FQ", "SS", "OA", "CL", "PV", "WS", "AM", "LO"]
-```
-
-Fallback sentiment mapping:
-
-```python
-DEFAULT_SENTIMENT_ID_TO_LABEL = {
-    0: "negative",
-    1: "neutral",
-    2: "positive",
+```json
+{
+  "text": "Food was tasty, but service was slow.",
+  "star_rating": 4,
+  "model_name": "XLM-RoBERTa",
+  "aspect_threshold": 0.5
 }
 ```
 
-If sentiment predictions look inverted, check your training label order and update `DEFAULT_SENTIMENT_ID_TO_LABEL` in `app/model_service.py`.
+## Excel Upload Format
 
-## SQI
+Only the review text column is required. Other columns are optional and are detected automatically when possible.
 
-Sentiment score:
+Supported data fields:
+
+| Field | Purpose |
+|---|---|
+| review text | main customer feedback text |
+| rating | star rating for NPS-like analytics |
+| branch / venue | branch-level comparison |
+| date | time trends |
+| platform | source filtering and reporting |
+| company response | response-rate analytics |
+| address | branch display |
+
+If the review column is not detected, the dashboard asks the user to select it manually.
+
+## Analytics Logic
+
+The backend converts model predictions into manager-facing indicators:
+
+- Aspect sentiment shares show what customers praise or criticize.
+- SQI converts sentiment and model confidence into a weighted service-quality score.
+- NPS-like metrics use star ratings when available.
+- Branch analytics compare locations by rating, SQI, negative share, response rate, and strongest or weakest aspects.
+- Time trends show rating, sentiment, review count, and SQI changes over time.
+- Exports provide prediction tables and multi-sheet Excel reports.
+
+## Model Paths Used by the App
+
+The FastAPI app looks for model folders in these locations:
 
 ```text
-positive = 100
-neutral = 60
-negative = 20
+models/final_model/aspect_model
+models/final_model/sentiment_model
+models/final_model_rubert/aspect_model
+models/final_model_rubert/sentiment_model
 ```
 
-For every review-aspect row:
+The app also resolves equivalent paths relative to `absa_web_app/`.
+
+Available model names in the dashboard:
 
 ```text
-aspect_score = sentiment_score * sentiment_confidence
+XLM-RoBERTa
+RuBERT
 ```
-
-Aspect SQI is the average aspect score. Overall SQI is a weighted average of aspect SQI values. The browser lets the manager adjust weights, and the backend normalizes them automatically.
-
-## NPS
-
-If star rating exists:
-
-```text
-5 stars = promoter
-4 stars = passive
-1-3 stars = detractor
-NPS = %promoters - %detractors
-```
-
-NPS is shown overall, by branch, and by month when data is available.
-
-## Exports
-
-The website supports:
-
-- predictions CSV
-- filtered predictions CSV
-- multi-sheet Excel report
-
-Excel sheets include predictions, review summary, aspect analytics, sentiment summary, SQI summary, branch summary, time trend, problem areas, strengths, and recommendations.
 
 ## Troubleshooting
 
-- `Model folder is missing or incomplete`: verify `config.json` and `model.safetensors` exist in the local model folders.
-- `Review text column was not detected`: select the text column manually in the browser.
-- CUDA out of memory: select RuBERT or let the backend fall back to CPU.
-- Predictions look inverted: check `DEFAULT_SENTIMENT_ID_TO_LABEL` in `app/model_service.py`.
-- Excel cannot be read: make sure the file is `.xlsx` and not password-protected.
+`Model folder is missing or incomplete`
+
+Check that the local model folder contains `config.json` and model weights such as `model.safetensors`.
+
+`Review text column was not detected`
+
+Select the review text column manually in the browser.
+
+`CUDA out of memory`
+
+Use CPU inference, reduce batch size in `model_service.py`, or use the smaller model option.
+
+`Predictions look inverted`
+
+Check the sentiment label order in `absa_web_app/app/model_service.py`.
+
+`Uploaded file cannot be read`
+
+Use a normal `.xlsx` file that is not password-protected.
+
+## Research Context
+
+The project supports the research topic:
+
+```text
+Development of a System for Analyzing and Classifying Customer Reviews
+of Restaurants and Fast-Food Chains to Assess Service Quality
+```
+
+It demonstrates both the machine-learning part of ABSA and the applied decision-support layer for service-quality monitoring.

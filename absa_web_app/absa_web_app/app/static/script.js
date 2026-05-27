@@ -22,17 +22,17 @@ const DEFAULT_WEIGHTS = {
 
 const I18N = {
   en: {
-    appEyebrow: "Managerial Analytics MVP",
-    appTitle: "Restaurant Review ABSA Dashboard",
-    appSubtitle: "Aspect-Based Sentiment Analysis for restaurants, cafes and quick-service restaurants",
+    appEyebrow: "Managerial analytics",
+    appTitle: "Welcome Back, Restaurant Manager",
+    appSubtitle: "Service Quality Analytics Dashboard",
     controlsTitle: "Controls",
     modelLabel: "Model",
     thresholdLabel: "Aspect threshold",
     weightsTitle: "SQI weights",
-    singleTitle: "Single Review Test",
+    singleTitle: "Analyze Single Review",
     uploadEyebrow: "Upload Excel",
-    uploadTitle: "Transform reviews into aspect analytics, SQI, NPS and branch insights",
-    uploadSubtitle: "Upload an .xlsx file with a review column. Rating, branch, date, platform and company response columns are optional.",
+    uploadTitle: "Upload Review Dataset",
+    uploadSubtitle: "Upload an .xlsx file with review text. Rating, branch, date, platform, response, and address columns are optional.",
     manualColumnText: "Review text column was not detected. Select it manually and run again.",
     emptyTitle: "No analysis yet",
     emptySubtitle: "Upload an Excel file and click Run Analysis to unlock the dashboard.",
@@ -46,7 +46,7 @@ const I18N = {
     runAnalysis: "Run Analysis",
     clear: "Clear",
     analyzeReview: "Analyze Review",
-    theme: "Toggle theme",
+    theme: "Theme",
     analyzing: "Uploading file and running local model inference...",
     analyzingShort: "Analyzing...",
     noData: "No data available",
@@ -636,7 +636,7 @@ const COLUMN_LABELS = {
 
 const state = {
   analysis: null,
-  selectedTab: "overview",
+  selectedTab: "upload",
   currentFile: null,
   manualTextColumn: null,
   reviewPage: 1,
@@ -645,6 +645,12 @@ const state = {
   health: null,
   branchFilters: { ratingMin: 0, sqiMin: 0, negMax: 1, minReviews: 0 },
 };
+
+const ANALYSIS_TABS = new Set([
+  "overview", "performance", "trends", "aspects", "praise", "problems",
+  "branches", "reviews", "actions", "branchAnalysis", "nps", "export",
+]);
+const STANDALONE_TABS = new Set(["singleReview", "upload", "settings"]);
 
 const $ = (id) => document.getElementById(id);
 
@@ -800,7 +806,12 @@ function applyLanguage() {
     if (el) el.textContent = t(id);
   });
   document.querySelectorAll("[data-i18n-key]").forEach((el) => {
-    el.textContent = t(el.dataset.i18nKey);
+    if (el.classList.contains("nav-item")) {
+      const icon = el.querySelector(".nav-icon")?.outerHTML || "";
+      el.innerHTML = `${icon}${escapeHtml(t(el.dataset.i18nKey))}`;
+    } else {
+      el.textContent = t(el.dataset.i18nKey);
+    }
   });
   $("themeToggle").textContent = t("theme");
   $("analyzeFileBtn").textContent = t("runAnalysis");
@@ -824,8 +835,10 @@ function renderWeights() {
   box.innerHTML = Object.entries(DEFAULT_WEIGHTS).map(([name, value]) => {
     const safeId = name.replaceAll(" ", "-").replaceAll("/", "-");
     return `
-      <label>${name} <span id="weight-${safeId}">${value.toFixed(2)}</span></label>
-      <input type="range" min="0" max="0.5" step="0.01" value="${value}" data-weight-name="${name}">
+      <div class="weight-control">
+        <label><span>${name}</span><span id="weight-${safeId}" class="control-value">${value.toFixed(2)}</span></label>
+        <input type="range" min="0" max="0.5" step="0.01" value="${value}" data-weight-name="${name}">
+      </div>
     `;
   }).join("");
   box.querySelectorAll("input").forEach((input) => {
@@ -833,7 +846,7 @@ function renderWeights() {
       const safeId = input.dataset.weightName.replaceAll(" ", "-").replaceAll("/", "-");
       const span = $(`weight-${safeId}`);
       if (span) span.textContent = Number(input.value).toFixed(2);
-      if (state.analysis) renderAll();
+      if (state.analysis) renderCurrentTab();
     });
   });
 }
@@ -855,7 +868,8 @@ function clearError() {
 }
 
 function updateHealthBadge(data) {
-  $("healthBadge").textContent = `${t("backendOk")} · ${data.device}`;
+  const badge = $("healthBadge");
+  if (badge) badge.textContent = `${t("backendOk")} - ${data.device}`;
 }
 
 async function checkHealth() {
@@ -865,7 +879,8 @@ async function checkHealth() {
     state.health = data;
     updateHealthBadge(data);
   } catch {
-    $("healthBadge").textContent = t("backendUnavailable");
+    const badge = $("healthBadge");
+    if (badge) badge.textContent = t("backendUnavailable");
   }
 }
 
@@ -930,16 +945,28 @@ async function analyzeFile() {
     }
     state.analysis = data;
     state.reviewPage = 1;
-    $("emptyState").classList.add("hidden");
-    $("dashboardArea").classList.remove("hidden");
     $("manualColumnBox").classList.add("hidden");
-    renderAll();
+    renderColumnPreview(data.meta?.detected_columns || {});
+    setActiveTab("performance", { instant: true });
   } catch (error) {
     showError(error.message);
   } finally {
     setLoading(false);
     $("analyzeFileBtn").disabled = false;
   }
+}
+
+function renderColumnPreview(columns) {
+  const box = $("uploadColumnPreview");
+  if (!box) return;
+  const entries = Object.entries(columns).filter(([, value]) => value);
+  if (!entries.length) {
+    box.classList.add("hidden");
+    box.innerHTML = "";
+    return;
+  }
+  box.innerHTML = entries.map(([key, value]) => `<span>${escapeHtml(key)}: ${escapeHtml(value)}</span>`).join("");
+  box.classList.remove("hidden");
 }
 
 function renderManualColumnSelect(columns) {
@@ -954,8 +981,30 @@ function renderManualColumnSelect(columns) {
 function tableHtml(rows, columns) {
   if (!rows || !rows.length) return `<p class="muted">${t("noData")}</p>`;
   return `<div class="table-wrap"><table><thead><tr>${columns.map((c) => `<th>${escapeHtml(columnLabel(c))}</th>`).join("")}</tr></thead><tbody>
-    ${rows.map((row) => `<tr>${columns.map((c) => `<td>${escapeHtml(formatCell(row[c], c, row))}</td>`).join("")}</tr>`).join("")}
+    ${rows.map((row) => `<tr>${columns.map((c) => `<td>${formatCellHtml(row[c], c, row)}</td>`).join("")}</tr>`).join("")}
   </tbody></table></div>`;
+}
+
+function formatCellHtml(value, column = "", row = {}) {
+  const text = escapeHtml(formatCell(value, column, row));
+  if (column === "sentiment" || column === "dominant_sentiment") {
+    return `<span class="badge ${String(value).toLowerCase()}">${text}</span>`;
+  }
+  if (column === "priority") {
+    const tone = String(value) === "Critical" || String(value) === "Important" ? "negative" : "neutral";
+    return `<span class="badge ${tone}">${text}</span>`;
+  }
+  if (column === "trend") {
+    const tone = String(value) === "Risk" ? "negative" : String(value) === "Improving" ? "positive" : "neutral";
+    return `<span class="badge ${tone}">${text}</span>`;
+  }
+  if (column === "aspect_name" || column === "most_problematic_aspect" || column === "strongest_aspect") {
+    return `<span class="aspect-pill">${text}</span>`;
+  }
+  if (typeof value === "boolean") {
+    return `<span class="badge ${value ? "neutral" : "positive"}">${text}</span>`;
+  }
+  return text;
 }
 
 function kpiHtml(label, value, sub = "", tone = "") {
@@ -966,106 +1015,408 @@ function featureCard(title, text) {
   return `<div class="feature-card"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(text)}</span></div>`;
 }
 
+function metricBadge(text, tone = "") {
+  return `<span class="metric-badge ${tone}">${escapeHtml(text)}</span>`;
+}
+
+function kpiBlock(label, value, badge, description, tone = "") {
+  return `<div class="kpi-block">
+    <span>${escapeHtml(label)}</span>
+    <strong class="kpi-value" data-counter="${escapeHtml(String(value).replace(/[^0-9.-]/g, ""))}">${escapeHtml(String(value))}</strong>
+    ${badge ? metricBadge(badge, tone) : ""}
+    ${description ? `<p>${escapeHtml(description)}</p>` : ""}
+  </div>`;
+}
+
+function sqiTone(score) {
+  const value = Number(score);
+  if (Number.isNaN(value)) return "neutral";
+  if (value >= 80) return "positive";
+  if (value >= 60) return "neutral";
+  return "negative";
+}
+
+function countProblemAreas() {
+  return (state.analysis?.problem_areas || []).filter((item) => Number(item.negative_share || 0) > 0).length;
+}
+
+function exportPanelHtml() {
+  return `<section id="exportPanel" class="export-panel">
+    <div>
+      <h2>${escapeHtml(u("exportFeature"))}</h2>
+      <p>${escapeHtml(u("exportFeatureText"))}</p>
+    </div>
+    <div class="actions-row">
+      <button class="primary-button" id="downloadCsvBtn">${escapeHtml(u("downloadPredictionsCsv"))}</button>
+      <button class="ghost-button" id="downloadFilteredCsvOverviewBtn">${escapeHtml(u("downloadFilteredCsv"))}</button>
+      <button class="primary-button" id="downloadExcelBtn">${escapeHtml(u("downloadExcelReport"))}</button>
+    </div>
+  </section>`;
+}
+
+function dashboardSelect(id, options, selected) {
+  return `<select id="${id}">${options.map((option) => `<option value="${escapeHtml(option)}" ${String(option) === String(selected) ? "selected" : ""}>${escapeHtml(optionText(option))}</option>`).join("")}</select>`;
+}
+
+function branchCardsHtml(branches) {
+  if (!branches.length) return "";
+  return `<div class="branch-card-grid">${branches.slice(0, 6).map((branch) => {
+    const sqi = Number(branch.overall_sqi || 0);
+    const positive = Math.max(0.01, Number(branch.positive_share || 0));
+    const negative = Math.max(0.01, Number(branch.negative_share || 0));
+    const neutral = Math.max(0.01, 1 - positive - negative);
+    return `<article class="branch-card">
+      <h3>${escapeHtml(branch.branch_name || "Branch")}</h3>
+      <p class="muted">${escapeHtml(branch.address || `${branch.review_count || 0} reviews`)}</p>
+      <div class="review-meta">
+        <span class="aspect-pill">SQI ${fmt(branch.overall_sqi, 1)}</span>
+        <span class="aspect-pill">NPS ${branch.nps == null ? "N/A" : fmt(branch.nps, 0)}</span>
+        <span class="aspect-pill">${branch.review_count || 0} reviews</span>
+      </div>
+      <div class="progress-bar"><span style="width:${Math.max(3, Math.min(100, sqi))}%"></span></div>
+      <p><strong>${escapeHtml(u("mainProblem"))}:</strong> ${escapeHtml(aspectDisplay(branch.most_problematic_aspect || "N/A"))}</p>
+      <p><strong>${escapeHtml(u("strongestAspect"))}:</strong> ${escapeHtml(aspectDisplay(branch.strongest_aspect || "N/A"))}</p>
+      <div class="sentiment-strip" style="--positive:${positive}fr; --neutral:${neutral}fr; --negative:${negative}fr;"><span></span><span></span><span></span></div>
+    </article>`;
+  }).join("")}</div>`;
+}
+
+function problemStrengthCardsHtml(problems, strengths) {
+  const problemHtml = problems.slice(0, 3).map((item) => `<div class="problem-card">
+    <div class="review-meta">
+      <span class="badge negative">${escapeHtml(priorityDisplay(item.priority))}</span>
+      <span class="aspect-pill">${escapeHtml(aspectDisplay(item.aspect_name))}</span>
+      <span class="badge negative">${pct(item.negative_share)}</span>
+    </div>
+    <p><strong>${escapeHtml(u("exampleQuote"))}:</strong> ${escapeHtml(item.sample_quote || "N/A")}</p>
+    <p class="muted">${escapeHtml(localizedRecommendation(item.aspect_id, item.recommendation))}</p>
+  </div>`).join("") || `<p class="muted">${escapeHtml(u("noUrgentProblems"))}</p>`;
+
+  const strengthsHtml = strengths.slice(0, 3).map((item) => `<div class="strength-card">
+    <div class="review-meta">
+      <span class="badge positive">${pct(item.positive_share)}</span>
+      <span class="aspect-pill">${escapeHtml(aspectDisplay(item.aspect_name))}</span>
+    </div>
+    <p><strong>${escapeHtml(u("exampleQuote"))}:</strong> ${escapeHtml(item.sample_quote || "N/A")}</p>
+    <p class="muted">This aspect helps protect repeat visits and brand trust.</p>
+  </div>`).join("") || `<p class="muted">${t("noData")}</p>`;
+
+  return `<div class="problem-strength-grid">
+    <section class="dashboard-card">
+      <h2>${escapeHtml(u("problematicAspects"))}</h2>
+      ${problemHtml}
+    </section>
+    <section class="dashboard-card">
+      <h2>${escapeHtml(u("positiveStrengths"))}</h2>
+      ${strengthsHtml}
+    </section>
+  </div>`;
+}
+
+function animateCounters() {
+  document.querySelectorAll("[data-counter]").forEach((node) => {
+    const target = Number(node.dataset.counter);
+    if (!Number.isFinite(target)) return;
+    const original = node.textContent || "";
+    const suffix = original.includes("%") ? "%" : "";
+    const decimals = original.includes(".") ? 1 : 0;
+    const start = performance.now();
+    const duration = 650;
+    const render = (now) => {
+      const progress = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      node.textContent = `${(target * eased).toFixed(decimals)}${suffix}`;
+      if (progress < 1) requestAnimationFrame(render);
+      else node.textContent = original;
+    };
+    requestAnimationFrame(render);
+  });
+}
+
 function renderAll() {
-  if (!state.analysis) return;
-  renderOverview();
-  renderPraise();
-  renderProblems();
-  renderBranches();
-  renderReviews();
-  renderActions();
-  renderBranchAnalysis();
+  renderCurrentTab();
+}
+
+function renderCurrentTab() {
+  if (!state.analysis || !ANALYSIS_TABS.has(state.selectedTab)) return;
+  ({
+    overview: renderOverview,
+    performance: renderPerformance,
+    trends: renderTrends,
+    aspects: renderAspects,
+    praise: renderPraise,
+    problems: renderProblems,
+    branches: renderBranches,
+    reviews: renderReviews,
+    actions: renderActions,
+    branchAnalysis: renderBranchAnalysis,
+    nps: renderNps,
+    export: renderExport,
+  }[state.selectedTab] || renderOverview)();
 }
 
 function renderOverview() {
   const area = $("overview");
   const summary = state.analysis.dashboard.summary;
-  const aspectRows = state.analysis.aspect_analytics || [];
-  const hasBranches = Boolean(state.analysis.venue_analytics?.length);
+  const problems = state.analysis.problem_areas || [];
+  const strengths = state.analysis.strengths || [];
   const hasTrend = Boolean(state.analysis.time_trend?.length);
   const detected = state.analysis.meta?.detected_columns || {};
   const detectedColumnsText = Object.entries(detected).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join(", ") || u("textOnly");
 
   area.innerHTML = `
-    <section class="overview-hero">
-      <div>
-        <p class="eyebrow">${escapeHtml(u("mvpDashboard"))}</p>
-        <h2>${escapeHtml(u("managerViewTitle"))}</h2>
-        <p class="muted">${escapeHtml(u("managerViewSubtitle", { model: state.analysis.meta?.model_name || $("modelSelect").value, reviews: summary.total_reviews ?? 0, columns: detectedColumnsText }))}</p>
+    <section id="kpiStrip" class="kpi-strip">
+      ${kpiBlock(u("totalReviews"), summary.total_reviews ?? 0, hasTrend ? "+ trend" : "live", "Reviews analyzed from uploaded data", "positive")}
+      ${kpiBlock("SQI", `${fmt(summary.overall_sqi, 1)}%`, sqiStatusDisplay(state.analysis.sqi?.status || ""), "Weighted service quality index", sqiTone(summary.overall_sqi))}
+      ${kpiBlock("NPS", summary.nps == null ? "N/A" : fmt(summary.nps, 0), summary.nps >= 0 ? "healthy" : "risk", "Promoters minus detractors", summary.nps >= 0 ? "positive" : "negative")}
+      ${kpiBlock(u("positiveShare"), pct(summary.positive_aspect_share), "strength", aspectDisplay(summary.strongest_aspect || "N/A"), "positive")}
+      ${kpiBlock(u("negativeShare"), pct(summary.negative_aspect_share), "watch", aspectDisplay(summary.most_problematic_aspect || "N/A"), "negative")}
+      ${kpiBlock("Problem Areas", countProblemAreas(), "priority", `${summary.total_aspect_mentions ?? 0} aspect mentions`, countProblemAreas() > 0 ? "neutral" : "positive")}
+    </section>
+
+    <section class="dashboard-card">
+      <div class="section-title compact-title">
+        <div>
+          <h2>${escapeHtml(u("managerViewTitle"))}</h2>
+          <p class="muted">${escapeHtml(u("managerViewSubtitle", { model: state.analysis.meta?.model_name || $("modelSelect").value, reviews: summary.total_reviews ?? 0, columns: detectedColumnsText }))}</p>
+        </div>
       </div>
-      <div class="score-ring">
-        <span>${escapeHtml(u("overallSqi"))}</span>
-        <strong>${fmt(summary.overall_sqi, 1)}</strong>
-        <em>${escapeHtml(sqiStatusDisplay(state.analysis.sqi?.status || ""))}</em>
+      <div class="dashboard-grid overview-summary-grid">
+        <article class="summary-tile">
+          <span>${escapeHtml(u("aspectMentions"))}</span>
+          <strong>${escapeHtml(summary.total_aspect_mentions ?? 0)}</strong>
+          <p>${escapeHtml(u("aspectClassificationResults"))}</p>
+        </article>
+        <article class="summary-tile">
+          <span>${escapeHtml(u("averageRating"))}</span>
+          <strong>${escapeHtml(fmt(summary.average_rating, 2))}</strong>
+          <p>${escapeHtml(u("ratingDistribution"))}</p>
+        </article>
+        <article class="summary-tile">
+          <span>${escapeHtml(u("responseRate"))}</span>
+          <strong>${escapeHtml(pct(summary.response_rate))}</strong>
+          <p>Company response coverage</p>
+        </article>
+        <article class="summary-tile">
+          <span>${escapeHtml(u("sentimentDistribution"))}</span>
+          <strong>${escapeHtml(pct(summary.positive_aspect_share))}</strong>
+          <p>${escapeHtml(sentimentDisplay("positive"))}</p>
+        </article>
       </div>
     </section>
 
-    <div class="feature-grid">
-      ${featureCard(u("aspectClassificationFeature"), u("aspectClassificationFeatureText"))}
-      ${featureCard(u("sentimentFeature"), u("sentimentFeatureText"))}
-      ${featureCard(u("sqiFeature"), u("sqiFeatureText"))}
-      ${featureCard(u("exportFeature"), u("exportFeatureText"))}
-    </div>
+    ${problemStrengthCardsHtml(problems.slice(0, 3), strengths.slice(0, 3))}
+  `;
+  animateCounters();
+}
 
-    <div class="kpi-grid">
-      ${kpiHtml(u("averageRating"), fmt(summary.average_rating, 2))}
-      ${kpiHtml(u("totalReviews"), summary.total_reviews ?? 0)}
-      ${kpiHtml(u("aspectMentions"), summary.total_aspect_mentions ?? 0)}
-      ${kpiHtml(u("responseRate"), summary.response_rate == null ? "N/A" : pct(summary.response_rate))}
-      ${kpiHtml("NPS", summary.nps == null ? "N/A" : fmt(summary.nps, 0))}
-      ${kpiHtml(u("overallSqi"), fmt(summary.overall_sqi, 1), sqiStatusDisplay(state.analysis.sqi?.status || ""))}
-      ${kpiHtml(u("negativeShare"), pct(summary.negative_aspect_share), "", "danger")}
-      ${kpiHtml(u("positiveShare"), pct(summary.positive_aspect_share), "", "success")}
-      ${kpiHtml(u("mainProblem"), aspectDisplay(summary.most_problematic_aspect || "N/A"), "", "danger")}
-      ${kpiHtml(u("strongestAspect"), aspectDisplay(summary.strongest_aspect || "N/A"), "", "success")}
-      ${kpiHtml(u("branchAnalytics"), hasBranches ? u("available") : u("noBranchColumn"))}
-      ${kpiHtml(u("timeTrends"), hasTrend ? u("available") : u("noDateColumn"))}
-    </div>
+function renderPerformance() {
+  const summary = state.analysis.dashboard.summary;
+  const aspectRows = state.analysis.aspect_analytics || [];
+  const detected = state.analysis.meta?.detected_columns || {};
+  const detectedColumnsText = Object.entries(detected).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join(", ") || u("textOnly");
+  const branches = unique((state.analysis.predictions || []).map((row) => row.venue).filter(Boolean));
 
-    <div class="actions-row">
-      <button class="primary-button" id="downloadCsvBtn">${escapeHtml(u("downloadPredictionsCsv"))}</button>
-      <button class="ghost-button" id="downloadExcelBtn">${escapeHtml(u("downloadExcelReport"))}</button>
-    </div>
+  $("performance").innerHTML = `
+    <section class="analytics-stage">
+      <article id="aspectPerformanceCard" class="dashboard-card aspect-performance">
+        <div class="chart-toolbar">
+          <div>
+            <h2>Aspect Performance</h2>
+            <p class="muted">${escapeHtml(u("managerViewSubtitle", { model: state.analysis.meta?.model_name || $("modelSelect").value, reviews: summary.total_reviews ?? 0, columns: detectedColumnsText }))}</p>
+          </div>
+          <div class="chart-controls">
+            ${dashboardSelect("trendMetricSelect", ["SQI", "Rating", "Positive", "Neutral", "Negative", "Reviews"], "SQI")}
+            ${dashboardSelect("aspectFilter", ["All", ...aspectRows.map((row) => row.aspect_name)], "All")}
+            ${dashboardSelect("branchFilter", ["All", ...branches], "All")}
+            ${dashboardSelect("periodSelect", ["Daily", "Weekly", "Monthly"], "Monthly")}
+          </div>
+        </div>
+        <div class="chart-legend">
+          <span class="legend-dot" style="--dot:#2563EB">SQI trend</span>
+          <span class="legend-dot" style="--dot:#22C55E">Positive</span>
+          <span class="legend-dot" style="--dot:#EF4444">Negative</span>
+        </div>
+        <canvas id="performanceTrendChart" class="performance-canvas"></canvas>
+      </article>
 
+      <aside class="floating-sqi-card">
+        <div class="card-header">
+          <h2>Service Quality Index</h2>
+          <span class="mini-badge">${escapeHtml(sqiStatusDisplay(state.analysis.sqi?.status || ""))}</span>
+        </div>
+        <div class="gauge-wrap">
+          <canvas id="sqiGauge"></canvas>
+          <div class="gauge-value">
+            <strong>${fmt(summary.overall_sqi, 1)}%</strong>
+            <span>${escapeHtml(sqiStatusDisplay(state.analysis.sqi?.status || ""))}</span>
+          </div>
+        </div>
+        <p>Overall quality based on aspect-level sentiment confidence</p>
+        <button id="viewSqiBtn" class="primary-button" type="button">View SQI Details</button>
+        <div class="sqi-legend">
+          <span class="legend-dot" style="--dot:#22C55E">${escapeHtml(sentimentDisplay("positive"))}</span>
+          <span class="legend-dot" style="--dot:#EAB308">${escapeHtml(sentimentDisplay("neutral"))}</span>
+          <span class="legend-dot" style="--dot:#EF4444">${escapeHtml(sentimentDisplay("negative"))}</span>
+        </div>
+      </aside>
+    </section>
+  `;
+  $("viewSqiBtn").onclick = () => setActiveTab("branchAnalysis");
+  ["trendMetricSelect", "aspectFilter", "branchFilter", "periodSelect"].forEach((id) => {
+    const el = $(id);
+    if (el) el.onchange = redrawPerformanceChart;
+  });
+  redrawPerformanceChart();
+  drawGaugeChart("sqiGauge", summary.overall_sqi || 0);
+}
+
+function renderTrends() {
+  const aspectRows = state.analysis.aspect_analytics || [];
+  $("trends").innerHTML = `
     <div class="section-title">
       <h2>${escapeHtml(u("coreAnalytics"))}</h2>
       <p class="muted">${escapeHtml(u("coreAnalyticsText"))}</p>
     </div>
-    <div class="grid-2">
+    <div id="trendSection" class="chart-grid">
       ${chartCard("aspectDistribution", u("aspectDistribution"))}
       ${chartCard("sentimentDistribution", u("sentimentDistribution"))}
       ${chartCard("sentimentByAspectOverview", u("sentimentByAspect"))}
       ${chartCard("sqiByAspectOverview", u("sqiByAspect"))}
       ${chartCard("negativeShareOverview", u("negativeShareByAspect"))}
+      ${chartCard("positiveShareOverview", u("positiveShareByAspect"))}
       ${chartCard("ratingDistribution", u("ratingDistribution"))}
       ${chartCard("ratingTrend", u("ratingTrend"))}
-      ${chartCard("sqiTrendOverview", u("sqiTrend"))}
-      ${chartCard("venueComparisonOverview", u("venueComparison"))}
-    </div>
-
-    <div class="grid-2">
-      <div class="card">
-        <h2>${escapeHtml(u("aspectClassificationResults"))}</h2>
-        ${tableHtml(aspectRows, ["aspect_name", "total_mentions", "positive_share", "neutral_share", "negative_share", "aspect_sqi", "average_aspect_confidence"])}
-      </div>
-      <div class="card">
-        <h2>${escapeHtml(u("reviewLevelTable"))}</h2>
-        ${tableHtml((state.analysis.review_level || []).slice(0, 12), ["review_id", "detected_aspects", "dominant_sentiment", "negative_aspects", "positive_aspects", "average_aspect_confidence"])}
-      </div>
+      ${chartCard("venueComparisonOverview", u("sqiByBranch"))}
+      ${chartCard("venueNegativeOverview", u("negativeShareByBranch"))}
     </div>
   `;
-
-  $("downloadCsvBtn").onclick = downloadCsv;
-  $("downloadExcelBtn").onclick = downloadExcel;
   drawBarChart("aspectDistribution", state.analysis.dashboard.aspect_distribution || [], { label: "aspect_name", value: "count", color: "#3b82f6" });
   drawDonutChart("sentimentDistribution", state.analysis.dashboard.sentiment_distribution || [], { label: "sentiment", value: "count" });
   drawStackedBarChart("sentimentByAspectOverview", pivotSentimentByAspect(state.analysis.dashboard.sentiment_by_aspect || []), { label: "aspect_name" });
   drawBarChart("sqiByAspectOverview", state.analysis.sqi.by_aspect || [], { label: "aspect_name", value: "sqi", color: "#3b82f6", maxY: 100 });
-  drawBarChart("negativeShareOverview", aspectRows, { label: "aspect_name", value: "negative_share", color: "#ef4444", maxY: 1 });
+  drawBarChart("negativeShareOverview", aspectRows, { label: "aspect_name", value: "negative_share", color: "#ef4444", maxY: 1, percent: true });
+  drawBarChart("positiveShareOverview", aspectRows, { label: "aspect_name", value: "positive_share", color: "#22c55e", maxY: 1, percent: true });
   drawHorizontalBarChart("ratingDistribution", state.analysis.dashboard.rating_distribution || [], { label: "rating", value: "count", color: "#3b82f6" });
   drawLineChart("ratingTrend", state.analysis.dashboard.rating_trend || [], { x: "month", y: "average_rating", color: "#3b82f6", maxY: 5 });
-  drawLineChart("sqiTrendOverview", state.analysis.time_trend || [], { x: "month", y: "sqi", color: "#22c55e", maxY: 100 });
   drawHorizontalBarChart("venueComparisonOverview", state.analysis.venue_analytics || [], { label: "branch_name", value: "overall_sqi", color: "#3b82f6", maxY: 100 });
+  drawHorizontalBarChart("venueNegativeOverview", state.analysis.venue_analytics || [], { label: "branch_name", value: "negative_share", color: "#ef4444", maxY: 1, percent: true });
+}
+
+function renderAspects() {
+  const aspectRows = state.analysis.aspect_analytics || [];
+  const aspectTableRows = aspectRows.map((row) => ({
+    ...row,
+    trend: Number(row.negative_share || 0) >= 0.25 ? "Risk" : Number(row.positive_share || 0) >= 0.60 ? "Improving" : "Stable",
+  }));
+  $("aspects").innerHTML = `
+    <section class="dashboard-card">
+      <div class="section-title compact-title">
+        <div>
+          <h2>${escapeHtml(u("aspectClassificationResults"))}</h2>
+          <p class="muted">Aspect mentions, sentiment mix, confidence, and SQI by managerial service category.</p>
+        </div>
+      </div>
+      ${tableHtml(aspectTableRows, ["aspect_name", "total_mentions", "positive_share", "neutral_share", "negative_share", "aspect_sqi", "average_aspect_confidence", "trend"])}
+    </section>
+    <div class="grid-2">
+      ${chartCard("aspectSqiPage", u("sqiByAspect"))}
+      ${chartCard("aspectSentimentPage", u("sentimentByAspect"))}
+    </div>
+  `;
+  drawBarChart("aspectSqiPage", state.analysis.sqi.by_aspect || [], { label: "aspect_name", value: "sqi", color: "#3b82f6", maxY: 100 });
+  drawStackedBarChart("aspectSentimentPage", pivotSentimentByAspect(state.analysis.dashboard.sentiment_by_aspect || []), { label: "aspect_name" });
+}
+
+function renderNps() {
+  const summary = state.analysis.dashboard.summary;
+  $("nps").innerHTML = `
+    <section class="kpi-grid">
+      ${kpiHtml("NPS", summary.nps == null ? "N/A" : fmt(summary.nps, 0), "Promoters minus detractors", summary.nps >= 0 ? "success" : "danger")}
+      ${kpiHtml(u("positiveShare"), pct(summary.positive_aspect_share), aspectDisplay(summary.strongest_aspect || "N/A"), "success")}
+      ${kpiHtml("Neutral share", pct(summary.neutral_aspect_share), sentimentDisplay("neutral"))}
+      ${kpiHtml(u("negativeShare"), pct(summary.negative_aspect_share), aspectDisplay(summary.most_problematic_aspect || "N/A"), "danger")}
+    </section>
+    <div class="grid-2">
+      ${chartCard("npsSentimentDistribution", u("sentimentDistribution"))}
+      ${chartCard("npsRatingDistribution", u("ratingDistribution"))}
+    </div>
+    <section class="dashboard-card">
+      <h2>${escapeHtml(u("reviewLevelTable"))}</h2>
+      ${tableHtml((state.analysis.review_level || []).slice(0, 10), ["review_id", "detected_aspects", "dominant_sentiment", "negative_aspects", "positive_aspects", "average_aspect_confidence"])}
+    </section>
+  `;
+  drawDonutChart("npsSentimentDistribution", state.analysis.dashboard.sentiment_distribution || [], { label: "sentiment", value: "count" });
+  drawHorizontalBarChart("npsRatingDistribution", state.analysis.dashboard.rating_distribution || [], { label: "rating", value: "count", color: "#3b82f6" });
+}
+
+function renderExport() {
+  $("export").innerHTML = `
+    ${exportPanelHtml()}
+    <section class="dashboard-card">
+      <h2>${escapeHtml(u("reviewLevelTable"))}</h2>
+      ${tableHtml((state.analysis.predictions || []).slice(0, 12), ["review_id", "aspect_name", "sentiment", "aspect_confidence", "sentiment_confidence", "venue", "star_rating"])}
+    </section>
+  `;
+  $("downloadCsvBtn").onclick = downloadCsv;
+  $("downloadExcelBtn").onclick = downloadExcel;
+  $("downloadFilteredCsvOverviewBtn").onclick = () => downloadRowsCsv(state.analysis?.predictions || [], "absa_filtered_predictions.csv");
+}
+
+function redrawPerformanceChart() {
+  if (!state.analysis) return;
+  const metric = $("trendMetricSelect")?.value || "SQI";
+  const filteredTrend = buildFilteredTrend();
+  const trend = filteredTrend.length ? filteredTrend : (state.analysis.time_trend || []);
+  const ratingTrend = filteredTrend.length ? filteredTrend : (state.analysis.dashboard?.rating_trend || []);
+  const config = {
+    SQI: { data: trend, x: "month", y: "sqi", color: "#2563EB", maxY: 100 },
+    Rating: { data: ratingTrend, x: "month", y: "average_rating", color: "#2563EB", maxY: 5 },
+    Positive: { data: trend, x: "month", y: "positive_share", color: "#22C55E", maxY: 1, percent: true },
+    Neutral: { data: trend, x: "month", y: "neutral_share", color: "#EAB308", maxY: 1, percent: true },
+    Negative: { data: trend, x: "month", y: "negative_share", color: "#EF4444", maxY: 1, percent: true },
+    Reviews: { data: trend.length ? trend : ratingTrend, x: "month", y: "review_count", color: "#2563EB" },
+  }[metric];
+  drawLineChart("performanceTrendChart", config.data || [], config);
+}
+
+function buildFilteredTrend() {
+  const rows = state.analysis?.predictions || [];
+  if (!rows.length) return [];
+  const aspect = $("aspectFilter")?.value || "All";
+  const branch = $("branchFilter")?.value || "All";
+  const shouldFilter = aspect !== "All" || branch !== "All";
+  if (!shouldFilter && (state.analysis.time_trend || []).length) return [];
+  let filtered = rows;
+  if (aspect !== "All") filtered = filtered.filter((row) => row.aspect_name === aspect);
+  if (branch !== "All") filtered = filtered.filter((row) => String(row.venue) === String(branch));
+  const groups = {};
+  filtered.forEach((row) => {
+    const rawDate = row.date || row.date_parsed || "";
+    const key = rawDate ? String(rawDate).slice(0, 7) : "Uploaded";
+    groups[key] ||= [];
+    groups[key].push(row);
+  });
+  return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b)).map(([month, group]) => {
+    const reviewIds = unique(group.map((row) => row.review_id));
+    const sentiments = { positive: 0, neutral: 0, negative: 0 };
+    group.forEach((row) => { sentiments[row.sentiment] = (sentiments[row.sentiment] || 0) + 1; });
+    const total = group.length || 1;
+    const ratings = Object.values(group.reduce((map, row) => {
+      if (row.star_rating != null && map[row.review_id] == null) map[row.review_id] = Number(row.star_rating);
+      return map;
+    }, {})).filter((value) => Number.isFinite(value));
+    const sqiValues = group.map((row) => ({ positive: 100, neutral: 60, negative: 20 }[row.sentiment] || 60) * (Number(row.sentiment_confidence) || 0));
+    return {
+      month,
+      review_count: reviewIds.length,
+      average_rating: ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null,
+      sqi: sqiValues.length ? sqiValues.reduce((a, b) => a + b, 0) / sqiValues.length : null,
+      positive_share: sentiments.positive / total,
+      neutral_share: sentiments.neutral / total,
+      negative_share: sentiments.negative / total,
+    };
+  });
 }
 
 function renderPraise() {
@@ -1093,7 +1444,7 @@ function renderPraise() {
       ${reviewQuoteHtml(quotes)}
     </div>
   `;
-  drawBarChart("positiveShareChart", state.analysis.aspect_analytics || [], { label: "aspect_name", value: "positive_share", color: "#22c55e", maxY: 1 });
+  drawBarChart("positiveShareChart", state.analysis.aspect_analytics || [], { label: "aspect_name", value: "positive_share", color: "#22c55e", maxY: 1, percent: true });
   drawBarChart("positiveCountChart", positives, { label: "aspect_name", value: "positive_count", color: "#22c55e" });
 }
 
@@ -1122,7 +1473,7 @@ function renderProblems() {
       ${reviewQuoteHtml(quotes)}
     </div>
   `;
-  drawBarChart("problemNegativeShare", state.analysis.aspect_analytics || [], { label: "aspect_name", value: "negative_share", color: "#ef4444", maxY: 1 });
+  drawBarChart("problemNegativeShare", state.analysis.aspect_analytics || [], { label: "aspect_name", value: "negative_share", color: "#ef4444", maxY: 1, percent: true });
   drawBarChart("problemNegativeCount", problems, { label: "aspect_name", value: "negative_count", color: "#ef4444" });
 }
 
@@ -1258,7 +1609,7 @@ function renderBranchAnalysis() {
       <label>${escapeHtml(u("branchSelect"))}</label>
       <select id="branchSelect">${branches.map((b) => `<option ${b.branch_name === branch.branch_name ? "selected" : ""}>${escapeHtml(b.branch_name)}</option>`).join("")}</select>
     </div>
-    <div class="kpi-grid">
+    <div class="kpi-grid branch-kpi-grid">
       ${kpiHtml(u("averageRating"), fmt(branch.average_rating, 2))}
       ${kpiHtml(u("totalReviews"), branch.review_count)}
       ${kpiHtml("SQI", fmt(branch.overall_sqi, 1))}
@@ -1479,17 +1830,101 @@ function downloadBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
+function syncPageVisibility() {
+  const isStandalone = STANDALONE_TABS.has(state.selectedTab);
+  const isAnalysisTab = ANALYSIS_TABS.has(state.selectedTab);
+  const canShowAnalysis = Boolean(state.analysis && isAnalysisTab);
+  const workGrid = $("workGrid");
+  const settingsPanel = $("settingsPanel");
+
+  settingsPanel?.classList.toggle("hidden", state.selectedTab !== "settings");
+  if (workGrid) {
+    const showWorkGrid = state.selectedTab === "singleReview" || state.selectedTab === "upload";
+    workGrid.classList.toggle("hidden", !showWorkGrid);
+    workGrid.classList.toggle("single-review-only", state.selectedTab === "singleReview");
+    workGrid.classList.toggle("upload-only", state.selectedTab === "upload");
+  }
+
+  $("dashboardArea")?.classList.toggle("hidden", !canShowAnalysis);
+  $("emptyState")?.classList.toggle("hidden", Boolean(state.analysis) || isStandalone);
+
+  document.querySelectorAll(".tab-panel").forEach((panel) => {
+    panel.classList.toggle("active", canShowAnalysis && panel.id === state.selectedTab);
+  });
+}
+
+function setActiveTab(tab, options = {}) {
+  const nextTab = ANALYSIS_TABS.has(tab) || STANDALONE_TABS.has(tab) ? tab : "upload";
+  state.selectedTab = nextTab;
+  document.querySelectorAll(".tab-button").forEach((button) => {
+    button.classList.toggle("active", button.dataset.tab === nextTab);
+  });
+  syncPageVisibility();
+  if (options.render !== false) renderCurrentTab();
+  window.scrollTo({ top: 0, behavior: options.instant ? "auto" : "smooth" });
+}
+
 function setupTabs() {
   document.querySelectorAll(".tab-button").forEach((btn) => {
     btn.addEventListener("click", () => {
-      document.querySelectorAll(".tab-button").forEach((b) => b.classList.remove("active"));
-      document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.remove("active"));
-      btn.classList.add("active");
-      $(btn.dataset.tab).classList.add("active");
-      state.selectedTab = btn.dataset.tab;
-      if (state.analysis) renderAll();
+      setActiveTab(btn.dataset.tab);
     });
   });
+}
+
+function setupShellInteractions() {
+  const sidebar = $("sidebar");
+  const backdrop = $("sidebarBackdrop");
+  const closeSidebar = () => {
+    sidebar?.classList.remove("open");
+    backdrop?.classList.remove("open");
+  };
+  $("sidebarToggle")?.addEventListener("click", () => {
+    sidebar?.classList.add("open");
+    backdrop?.classList.add("open");
+  });
+  backdrop?.addEventListener("click", closeSidebar);
+
+  document.querySelectorAll(".nav-scroll").forEach((button) => {
+    button.addEventListener("click", () => {
+      closeSidebar();
+      const target = $(button.dataset.scrollTarget);
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+  document.querySelectorAll(".tab-button").forEach((button) => {
+    button.addEventListener("click", closeSidebar);
+  });
+
+  const fileInput = $("fileInput");
+  const dropzone = $("uploadDropzone");
+  const fileName = $("fileName");
+  const updateFileName = () => {
+    if (fileInput?.files?.[0] && fileName) fileName.textContent = fileInput.files[0].name;
+  };
+  fileInput?.addEventListener("change", updateFileName);
+  ["dragenter", "dragover"].forEach((eventName) => {
+    dropzone?.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      dropzone.classList.add("drag-over");
+    });
+  });
+  ["dragleave", "drop"].forEach((eventName) => {
+    dropzone?.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      dropzone.classList.remove("drag-over");
+    });
+  });
+  dropzone?.addEventListener("drop", (event) => {
+    const file = event.dataTransfer?.files?.[0];
+    if (!file || !fileInput) return;
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    fileInput.files = transfer.files;
+    updateFileName();
+  });
+
+  $("topExportBtn")?.addEventListener("click", downloadExcel);
 }
 
 function canvasSetup(id) {
@@ -1638,33 +2073,92 @@ function drawHorizontalBarChart(canvasId, data, options = {}) {
 function drawLineChart(canvasId, data, options = {}) {
   const setup = canvasSetup(canvasId);
   if (!setup) return;
-  const { ctx, width, height } = setup;
+  const { canvas, ctx, width, height } = setup;
   const clean = data.filter((d) => d[options.y] !== null && d[options.y] !== undefined);
   if (!clean.length) return drawEmpty(ctx, width, height);
-  const bottom = 38;
+  const bottom = 44;
   const left = 50;
   const max = options.maxY || Math.max(...clean.map((d) => Number(d[options.y]) || 0), 1);
+  const top = 22;
+  const chartHeight = height - bottom - top;
+  const chartWidth = width - left - 22;
   drawAxes(ctx, width, height, bottom, left);
   drawYAxisTicks(ctx, width, height, max, bottom, left, options);
+  const points = clean.map((d, i) => {
+    const x = left + i * (chartWidth / Math.max(1, clean.length - 1));
+    const y = height - bottom - (Number(d[options.y]) / (max || 1)) * chartHeight;
+    return { x, y, row: d, value: Number(d[options.y]) || 0 };
+  });
+  const gradient = ctx.createLinearGradient(0, top, 0, height - bottom);
+  gradient.addColorStop(0, `${options.color || "#3b82f6"}26`);
+  gradient.addColorStop(1, `${options.color || "#3b82f6"}00`);
+  ctx.beginPath();
+  points.forEach((point, i) => {
+    if (i === 0) ctx.moveTo(point.x, point.y);
+    else {
+      const previous = points[i - 1];
+      const midX = (previous.x + point.x) / 2;
+      ctx.bezierCurveTo(midX, previous.y, midX, point.y, point.x, point.y);
+    }
+  });
+  ctx.lineTo(points[points.length - 1].x, height - bottom);
+  ctx.lineTo(points[0].x, height - bottom);
+  ctx.closePath();
+  ctx.fillStyle = gradient;
+  ctx.fill();
+
   ctx.strokeStyle = options.color || "#3b82f6";
   ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
   ctx.beginPath();
-  clean.forEach((d, i) => {
-    const x = left + i * ((width - left - 20) / Math.max(1, clean.length - 1));
-    const y = height - bottom - (Number(d[options.y]) / (max || 1)) * (height - bottom - 30);
-    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  points.forEach((point, i) => {
+    if (i === 0) ctx.moveTo(point.x, point.y);
+    else {
+      const previous = points[i - 1];
+      const midX = (previous.x + point.x) / 2;
+      ctx.bezierCurveTo(midX, previous.y, midX, point.y, point.x, point.y);
+    }
   });
   ctx.stroke();
-  clean.forEach((d, i) => {
-    const x = left + i * ((width - left - 20) / Math.max(1, clean.length - 1));
-    const y = height - bottom - (Number(d[options.y]) / (max || 1)) * (height - bottom - 30);
+  points.forEach((point) => {
     ctx.fillStyle = options.color || "#3b82f6";
     ctx.beginPath();
-    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = mutedColor();
-    ctx.fillText(String(d[options.x] ?? "").slice(2), x - 12, height - 18);
+    ctx.strokeStyle = panelColor();
+    ctx.lineWidth = 2;
+    ctx.stroke();
   });
+  clean.forEach((d, i) => {
+    const point = points[i];
+    ctx.fillStyle = mutedColor();
+    ctx.fillText(String(d[options.x] ?? "").slice(-5), point.x - 13, height - 18);
+  });
+  bindChartTooltip(canvas, points, options);
+}
+
+function bindChartTooltip(canvas, points, options = {}) {
+  const tooltip = $("chartTooltip");
+  if (!tooltip) return;
+  canvas.onmousemove = (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const nearest = points.reduce((best, point) => {
+      const distance = Math.hypot(point.x - x, point.y - y);
+      return distance < best.distance ? { point, distance } : best;
+    }, { point: null, distance: Infinity });
+    if (!nearest.point || nearest.distance > 26) {
+      tooltip.classList.add("hidden");
+      return;
+    }
+    tooltip.innerHTML = `<strong>${escapeHtml(String(nearest.point.row[options.x] ?? ""))}</strong><span>${escapeHtml(formatChartValue(nearest.point.value, options))}</span>`;
+    tooltip.style.left = `${event.clientX}px`;
+    tooltip.style.top = `${event.clientY}px`;
+    tooltip.classList.remove("hidden");
+  };
+  canvas.onmouseleave = () => tooltip.classList.add("hidden");
 }
 
 function drawStackedBarChart(canvasId, data, options = {}) {
@@ -1713,34 +2207,116 @@ function drawDonutChart(canvasId, data, options = {}) {
   if (!setup) return;
   const { ctx, width, height } = setup;
   if (!data.length) return drawEmpty(ctx, width, height);
-  const total = data.reduce((sum, d) => sum + (Number(d[options.value]) || 0), 0) || 1;
   const colors = { positive: "#22c55e", neutral: "#eab308", negative: "#ef4444" };
+  const orderedKeys = ["positive", "neutral", "negative"];
+  const normalized = orderedKeys
+    .map((key) => data.find((item) => String(item[options.label]).toLowerCase() === key))
+    .filter(Boolean)
+    .concat(data.filter((item) => !orderedKeys.includes(String(item[options.label]).toLowerCase())));
+  const total = normalized.reduce((sum, d) => sum + (Number(d[options.value]) || 0), 0) || 1;
   let start = -Math.PI / 2;
   const cx = width / 2;
-  const cy = height / 2;
-  const r = Math.min(width, height) * 0.32;
-  data.forEach((d) => {
+  const cy = height / 2 + 8;
+  const r = Math.min(width, height) * 0.25;
+  const ringWidth = Math.max(24, Math.min(34, Math.min(width, height) * 0.12));
+
+  ctx.save();
+  ctx.lineWidth = ringWidth;
+  ctx.lineCap = "butt";
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--line-soft");
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+
+  normalized.forEach((d) => {
     const val = Number(d[options.value]) || 0;
-    const end = start + (val / total) * Math.PI * 2;
+    if (val <= 0) return;
+    const rawKey = String(d[options.label] ?? "").toLowerCase();
+    const color = colors[rawKey] || "#3b82f6";
+    const sweep = (val / total) * Math.PI * 2;
+    const gap = Math.min(0.026, sweep * 0.18);
+    const end = start + sweep;
+    const drawStart = start + gap;
+    const drawEnd = end - gap;
+
     ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.fillStyle = colors[d[options.label]] || "#3b82f6";
-    ctx.arc(cx, cy, r, start, end);
-    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.arc(cx, cy, r, drawStart, drawEnd);
+    ctx.stroke();
+
+    const mid = start + sweep / 2;
+    const lineStart = r + ringWidth / 2 + 2;
+    const lineEnd = lineStart + 13;
+    const labelRadius = lineEnd + 12;
+    const sx = cx + Math.cos(mid) * lineStart;
+    const sy = cy + Math.sin(mid) * lineStart;
+    const ex = cx + Math.cos(mid) * lineEnd;
+    const ey = cy + Math.sin(mid) * lineEnd;
+    const lx = cx + Math.cos(mid) * labelRadius;
+    const ly = cy + Math.sin(mid) * labelRadius;
+    const align = lx >= cx ? "left" : "right";
+
+    ctx.save();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    ctx.textAlign = align;
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = color;
+    ctx.font = "700 13px system-ui";
+    ctx.fillText(formatChartValue(val, options), lx, ly - 7);
+    ctx.fillStyle = mutedColor();
+    ctx.font = "12px system-ui";
+    ctx.fillText(sentimentDisplay(rawKey), lx, ly + 8);
+    ctx.restore();
+
     start = end;
   });
+  ctx.restore();
+}
+
+function drawGaugeChart(canvasId, value = 0) {
+  const setup = canvasSetup(canvasId);
+  if (!setup) return;
+  const { ctx, width, height } = setup;
+  const score = Math.max(0, Math.min(100, Number(value) || 0));
+  const cx = width / 2;
+  const cy = height * 0.86;
+  const radius = Math.min(width * 0.36, height * 0.72);
+  const lineWidth = 22;
+  const start = Math.PI;
+  const end = Math.PI * 2;
+  const progressEnd = start + (score / 100) * Math.PI;
+
+  ctx.lineCap = "butt";
+  ctx.lineWidth = lineWidth;
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--line-soft");
   ctx.beginPath();
-  ctx.fillStyle = panelColor();
-  ctx.arc(cx, cy, r * 0.58, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = currentTextColor();
-  ctx.textAlign = "center";
-  ctx.font = "700 14px system-ui";
-  ctx.fillText(`${total}`, cx, cy - 2);
-  ctx.font = "12px system-ui";
-  ctx.fillText("mentions", cx, cy + 16);
-  ctx.textAlign = "left";
-  drawLegend(ctx, width, data.map((d) => [chartLabel(d, options.label), colors[d[options.label]] || "#3b82f6"]));
+  ctx.arc(cx, cy, radius, start, end);
+  ctx.stroke();
+
+  const segments = [
+    [0.00, 0.28, "#2563EB"],
+    [0.36, 0.58, "#E8ECF7"],
+    [0.66, 0.83, "#E8ECF7"],
+    [0.89, 1.00, "#5ED9D1"],
+  ];
+  segments.forEach(([a, b, color]) => {
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, start + a * Math.PI, start + b * Math.PI);
+    ctx.stroke();
+  });
+
+  ctx.lineCap = "round";
+  ctx.lineWidth = 7;
+  ctx.strokeStyle = score >= 80 ? "#22C55E" : score >= 60 ? "#EAB308" : "#EF4444";
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius - lineWidth * 0.74, start, progressEnd);
+  ctx.stroke();
 }
 
 function drawLegend(ctx, width, items) {
@@ -1778,7 +2354,9 @@ function init() {
   $("languageSelect").value = state.language;
   renderWeights();
   setupTabs();
+  setupShellInteractions();
   applyLanguage();
+  setActiveTab(state.selectedTab, { render: false, instant: true });
   checkHealth();
   $("languageSelect").onchange = () => {
     state.language = $("languageSelect").value;
@@ -1796,8 +2374,11 @@ function init() {
     state.currentFile = null;
     state.manualTextColumn = null;
     $("fileInput").value = "";
-    $("dashboardArea").classList.add("hidden");
-    $("emptyState").classList.remove("hidden");
+    const fileName = $("fileName");
+    if (fileName) fileName.textContent = "Drop .xlsx file here or browse";
+    $("uploadColumnPreview")?.classList.add("hidden");
+    if ($("uploadColumnPreview")) $("uploadColumnPreview").innerHTML = "";
+    setActiveTab("upload", { render: false, instant: true });
     clearError();
   };
 }

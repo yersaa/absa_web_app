@@ -3,71 +3,180 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Restaurant Review ABSA Dashboard</title>
+  <title>ABSA Analytics — Restaurant Review Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/styles.css?v=20260514-branch-kpis" />
 </head>
 <body>
+
+  <!-- ─── Mobile Top Bar ─── -->
   <div class="mobile-bar">
-    <button id="sidebarToggle" class="icon-button" type="button" aria-label="Open menu">☰</button>
+    <button id="sidebarToggle" class="icon-button" type="button" aria-label="Open menu">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="2" y1="5" x2="16" y2="5"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="13" x2="16" y2="13"/>
+      </svg>
+    </button>
     <div class="mobile-brand">
-      <span class="brand-mark">A</span>
+      <div class="brand-mark" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 13L8 3L13 13" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="5" y1="9" x2="11" y2="9" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+      </div>
       <strong>ABSA Analytics</strong>
+    </div>
+    <div class="mobile-header-actions">
+      <button id="themeToggle" class="icon-button" type="button" aria-label="Toggle theme" title="Toggle theme">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1.5a5.5 5.5 0 0 1 0 11V2.5z"/></svg>
+      </button>
     </div>
   </div>
 
   <div class="app-shell">
+
+    <!-- ─── Sidebar ─── -->
     <aside id="sidebar" class="sidebar" aria-label="Primary navigation">
       <div class="brand-block">
-        <span class="brand-mark">A</span>
-        <div>
+        <div class="brand-mark" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 13L8 3L13 13" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><line x1="5" y1="9" x2="11" y2="9" stroke="white" stroke-width="2.2" stroke-linecap="round"/></svg>
+        </div>
+        <div class="brand-text">
           <strong>ABSA Analytics</strong>
           <small>ReviewIQ Console</small>
         </div>
       </div>
 
-      <nav class="side-nav">
+      <nav class="side-nav" aria-label="Dashboard sections">
+
         <p class="nav-heading">Analytics</p>
-        <button class="nav-item tab-button active" data-tab="upload" type="button"><span class="nav-icon">&#9638;</span>Dashboard</button>
-        <button class="nav-item tab-button" data-tab="performance" type="button"><span class="nav-icon">&#9635;</span>Performance</button>
-        <button class="nav-item tab-button" data-tab="trends" type="button"><span class="nav-icon">&#8599;</span>Trends</button>
+
+        <button class="nav-item tab-button active" data-tab="upload" type="button">
+          <span class="nav-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="5" height="5" rx="1"/><rect x="9" y="1" width="5" height="5" rx="1"/><rect x="1" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
+          </span>
+          <span class="nav-label">Dashboard</span>
+        </button>
+
+        <button class="nav-item tab-button" data-tab="performance" type="button">
+          <span class="nav-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="1,11 5,7 8,9 14,3"/><line x1="10" y1="3" x2="14" y2="3"/><line x1="14" y1="3" x2="14" y2="7"/></svg>
+          </span>
+          <span class="nav-label">Performance</span>
+        </button>
+
+        <button class="nav-item tab-button" data-tab="trends" type="button">
+          <span class="nav-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M1 12C3 12 4 8 6 8C8 8 8 10 10 10C12 10 12 5 14 3"/></svg>
+          </span>
+          <span class="nav-label">Trends</span>
+        </button>
 
         <p class="nav-heading">Reviews</p>
-        <button class="nav-item tab-button" data-tab="singleReview" type="button"><span class="nav-icon">&#9671;</span>Single Review Test</button>
-        <button class="nav-item tab-button" data-tab="reviews" data-i18n-key="tabReviews" type="button"><span class="nav-icon">&#9783;</span>Review History</button>
+
+        <button class="nav-item tab-button" data-tab="singleReview" type="button">
+          <span class="nav-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="7.5" r="5.5"/><line x1="7.5" y1="5" x2="7.5" y2="7.5"/><circle cx="7.5" cy="10" r="0.5" fill="currentColor"/></svg>
+          </span>
+          <span class="nav-label">Single Review</span>
+        </button>
+
+        <button class="nav-item tab-button" data-tab="reviews" data-i18n-key="tabReviews" type="button">
+          <span class="nav-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="2" width="13" height="11" rx="1.5"/><line x1="4" y1="5.5" x2="11" y2="5.5"/><line x1="4" y1="8" x2="11" y2="8"/><line x1="4" y1="10.5" x2="8" y2="10.5"/></svg>
+          </span>
+          <span class="nav-label">Review History</span>
+        </button>
 
         <p class="nav-heading">Insights</p>
-        <button class="nav-item tab-button" data-tab="aspects" type="button"><span class="nav-icon">&#9678;</span>Aspects</button>
-        <button class="nav-item tab-button" data-tab="praise" data-i18n-key="tabPraise" type="button"><span class="nav-icon">+</span>Sentiment</button>
-        <button class="nav-item tab-button" data-tab="branches" data-i18n-key="tabBranches" type="button"><span class="nav-icon">&#9873;</span>Branches</button>
-        <button class="nav-item tab-button" data-tab="problems" data-i18n-key="tabProblems" type="button"><span class="nav-icon">!</span>Problems</button>
-        <button class="nav-item tab-button" data-tab="branchAnalysis" data-i18n-key="tabBranchAnalysis" type="button"><span class="nav-icon">%</span>SQI</button>
-        <button class="nav-item tab-button" data-tab="nps" type="button"><span class="nav-icon">N</span>NPS</button>
+
+        <button class="nav-item tab-button" data-tab="aspects" type="button">
+          <span class="nav-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="5.5"/><line x1="7.5" y1="2" x2="7.5" y2="13"/><path d="M3 5h9M3 10h9"/></svg>
+          </span>
+          <span class="nav-label">Aspects</span>
+        </button>
+
+        <button class="nav-item tab-button" data-tab="praise" data-i18n-key="tabPraise" type="button">
+          <span class="nav-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 2L9.2 5.5L13 6.1L10.25 8.8L10.9 12.6L7.5 10.8L4.1 12.6L4.75 8.8L2 6.1L5.8 5.5Z"/></svg>
+          </span>
+          <span class="nav-label">Sentiment</span>
+        </button>
+
+        <button class="nav-item tab-button" data-tab="branches" data-i18n-key="tabBranches" type="button">
+          <span class="nav-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12V6l5.5-4L13 6v6"/><rect x="5.5" y="8" width="4" height="4"/></svg>
+          </span>
+          <span class="nav-label">Branches</span>
+        </button>
+
+        <button class="nav-item tab-button" data-tab="problems" data-i18n-key="tabProblems" type="button">
+          <span class="nav-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 1L14 13H1Z"/><line x1="7.5" y1="5.5" x2="7.5" y2="9"/><circle cx="7.5" cy="11" r="0.5" fill="currentColor"/></svg>
+          </span>
+          <span class="nav-label">Problems</span>
+        </button>
+
+        <button class="nav-item tab-button" data-tab="branchAnalysis" data-i18n-key="tabBranchAnalysis" type="button">
+          <span class="nav-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="1" y="8" width="3" height="5" rx="0.5"/><rect x="6" y="5" width="3" height="8" rx="0.5"/><rect x="11" y="2" width="3" height="11" rx="0.5"/></svg>
+          </span>
+          <span class="nav-label">SQI</span>
+        </button>
+
+        <button class="nav-item tab-button" data-tab="nps" type="button">
+          <span class="nav-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7.5 1.5a6 6 0 1 0 0 12 6 6 0 0 0 0-12z"/><path d="M5 9s.8 1.5 2.5 1.5S10 9 10 9"/><line x1="5.5" y1="5.5" x2="5.5" y2="5.5" stroke-width="2"/><line x1="9.5" y1="5.5" x2="9.5" y2="5.5" stroke-width="2"/></svg>
+          </span>
+          <span class="nav-label">NPS</span>
+        </button>
 
         <p class="nav-heading">Reports</p>
-        <button class="nav-item tab-button" data-tab="actions" data-i18n-key="tabActions" type="button"><span class="nav-icon">&#10003;</span>Recommendations</button>
-        <button class="nav-item tab-button" data-tab="export" type="button"><span class="nav-icon">&#8681;</span>Export</button>
-        <button class="nav-item tab-button" data-tab="settings" type="button"><span class="nav-icon">&#9881;</span>Settings</button>
+
+        <button class="nav-item tab-button" data-tab="actions" data-i18n-key="tabActions" type="button">
+          <span class="nav-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,8 6,11 12,4"/></svg>
+          </span>
+          <span class="nav-label">Recommendations</span>
+        </button>
+
+        <button class="nav-item tab-button" data-tab="export" type="button">
+          <span class="nav-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 1v8M4.5 6l3 3 3-3"/><path d="M2 10v2a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-2"/></svg>
+          </span>
+          <span class="nav-label">Export</span>
+        </button>
+
+        <button class="nav-item tab-button" data-tab="settings" type="button">
+          <span class="nav-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 1.5l-.8 1.6-1.7.7-1.7-.6-1 1.8.9 1.5v1.8l-1 1.5 1 1.8 1.7-.6 1.7.7.8 1.6h2l.8-1.6 1.7-.7 1.7.6 1-1.8-.9-1.5v-1.8l1-1.5-1-1.8-1.7.6-1.7-.7-.8-1.6H6z"/><circle cx="7.5" cy="7.5" r="1.8"/></svg>
+          </span>
+          <span class="nav-label">Settings</span>
+        </button>
+
       </nav>
 
       <div class="sidebar-footer">
         <div class="user-card">
-          <div class="avatar">RM</div>
-          <div>
+          <div class="avatar" aria-hidden="true">RM</div>
+          <div class="user-info">
             <strong>Restaurant Manager</strong>
             <span>Premium analytics</span>
           </div>
         </div>
-        <button class="footer-link" type="button">Logout</button>
+        <button class="footer-link" type="button">Sign out</button>
       </div>
     </aside>
 
-    <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+    <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
 
+    <!-- ─── Main Content ─── -->
     <main class="main-surface">
+
+      <!-- Dashboard Header -->
       <header class="dashboard-header">
         <div class="greeting">
           <div class="avatar-ring" aria-hidden="true">RM</div>
-          <div>
+          <div class="greeting-text">
             <p id="appEyebrow" class="eyebrow">Managerial analytics</p>
             <h1 id="appTitle">Welcome Back, Restaurant Manager</h1>
             <p id="appSubtitle" class="subtitle">Service Quality Analytics Dashboard</p>
@@ -75,26 +184,38 @@
         </div>
 
         <div class="header-actions">
-          <div class="segmented" aria-label="Interface language">
-            <select id="languageSelect" class="language-select">
+          <div class="header-controls-group">
+            <select id="languageSelect" class="language-select" aria-label="Interface language">
               <option value="en">EN</option>
               <option value="ru">RU</option>
               <option value="kk">KZ</option>
             </select>
+            <select id="modelSelect" class="model-select" aria-label="Model">
+              <option selected>XLM-RoBERTa</option>
+              <option>RuBERT</option>
+            </select>
           </div>
-          <select id="modelSelect" class="model-select" aria-label="Model">
-            <option selected>XLM-RoBERTa</option>
-            <option>RuBERT</option>
-          </select>
-          <button id="themeToggle" class="ghost-button compact" type="button">Theme</button>
-          <button id="topExportBtn" class="primary-button compact" type="button">Export</button>
+          <div class="header-action-buttons">
+            <button id="themeToggle" class="ghost-button compact" type="button" aria-label="Toggle theme">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><path d="M7 1a6 6 0 1 0 0 12A6 6 0 0 0 7 1zm0 1.5a4.5 4.5 0 0 1 0 9V2.5z"/></svg>
+              <span>Theme</span>
+            </button>
+            <button id="topExportBtn" class="primary-button compact" type="button">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 1v7M4 5l3 3 3-3"/><path d="M2 10v1.5a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5V10"/></svg>
+              <span>Export</span>
+            </button>
+          </div>
         </div>
       </header>
 
-      <section id="settingsPanel" class="settings-strip">
-        <div>
-          <label class="control-label"><span id="thresholdLabel">Aspect threshold</span><span id="thresholdValue" class="control-value">0.50</span></label>
-          <input id="thresholdInput" type="range" min="0.1" max="0.9" value="0.5" step="0.05" />
+      <!-- Settings Strip -->
+      <section id="settingsPanel" class="settings-strip" aria-label="Analysis settings">
+        <div class="setting-block">
+          <label class="control-label" for="thresholdInput">
+            <span id="thresholdLabel">Aspect threshold</span>
+            <span id="thresholdValue" class="control-value">0.50</span>
+          </label>
+          <input id="thresholdInput" type="range" min="0.1" max="0.9" value="0.5" step="0.05" aria-label="Aspect detection threshold" />
         </div>
         <details class="weights-popover" open>
           <summary id="weightsTitle">SQI weights</summary>
@@ -102,82 +223,101 @@
         </details>
       </section>
 
-      <section id="workGrid" class="work-grid">
+      <!-- Upload & Single Review Grid -->
+      <section id="workGrid" class="work-grid" aria-label="Analysis tools">
+
         <article id="singleReviewCard" class="card single-review-card">
           <div class="card-header">
-            <div>
+            <div class="card-header-text">
               <p class="eyebrow">Live model test</p>
               <h2 id="singleTitle">Analyze Single Review</h2>
             </div>
             <span class="mini-badge">Aspect-aware</span>
           </div>
-          <textarea id="singleText" rows="5">Еда вкусная, персонал вежливый, но заказ ждали слишком долго.</textarea>
+          <textarea id="singleText" rows="5" aria-label="Review text to analyze">Еда вкусная, персонал вежливый, но заказ ждали слишком долго.</textarea>
           <div class="input-row">
-            <input id="singleRating" type="number" min="1" max="5" step="0.5" placeholder="Optional star rating" />
-            <button id="singleAnalyzeBtn" class="primary-button" type="button">Analyze Review</button>
+            <input id="singleRating" type="number" min="1" max="5" step="0.5" placeholder="Star rating (optional)" aria-label="Star rating" />
+            <button id="singleAnalyzeBtn" class="primary-button" type="button">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="5.5"/><path d="M5.5 7l1.5 1.5L9.5 6"/></svg>
+              Analyze Review
+            </button>
           </div>
-          <div id="singleResult" class="single-result"></div>
+          <div id="singleResult" class="single-result" role="region" aria-live="polite" aria-label="Analysis result"></div>
         </article>
 
         <article id="uploadCard" class="card upload-card">
           <div class="card-header">
-            <div>
+            <div class="card-header-text">
               <p id="uploadEyebrow" class="eyebrow">Upload Excel</p>
               <h2 id="uploadTitle">Upload Review Dataset</h2>
-              <p id="uploadSubtitle" class="muted">Upload an .xlsx file with review text. Rating, branch, date, platform, response, and address columns are optional.</p>
+              <p id="uploadSubtitle" class="muted card-subtitle">Upload an .xlsx file with review text. Rating, branch, date, platform, response, and address columns are optional.</p>
             </div>
           </div>
           <label id="uploadDropzone" class="upload-dropzone" for="fileInput">
-            <input id="fileInput" type="file" accept=".xlsx" />
-            <span class="upload-icon">⇧</span>
+            <input id="fileInput" type="file" accept=".xlsx" aria-label="Choose Excel file" />
+            <div class="upload-icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 14V4M7 8l4-4 4 4"/><path d="M4 16v1.5A1.5 1.5 0 0 0 5.5 19h11A1.5 1.5 0 0 0 18 17.5V16"/></svg>
+            </div>
             <strong id="fileName">Drop .xlsx file here or browse</strong>
-            <small>Automatic column detection with manual review text fallback</small>
+            <small>Auto-detection of columns — manual fallback available</small>
           </label>
           <div class="upload-actions">
-            <button id="analyzeFileBtn" class="primary-button" type="button">Run Analysis</button>
-            <button id="clearBtn" class="ghost-button" type="button">Clear</button>
+            <button id="analyzeFileBtn" class="primary-button" type="button">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="5.5"/><line x1="4.5" y1="7" x2="9.5" y2="7"/><line x1="7" y1="4.5" x2="7" y2="9.5"/></svg>
+              Run Analysis
+            </button>
+            <button id="clearBtn" class="ghost-button" type="button">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="2" y1="2" x2="12" y2="12"/><line x1="12" y1="2" x2="2" y2="12"/></svg>
+              Clear
+            </button>
           </div>
-          <div id="uploadColumnPreview" class="column-preview hidden"></div>
+          <div id="uploadColumnPreview" class="column-preview hidden" aria-live="polite"></div>
           <div id="manualColumnBox" class="manual-box hidden">
             <p id="manualColumnText">Review text column was not detected. Select it manually and run again.</p>
-            <select id="manualTextColumn"></select>
+            <select id="manualTextColumn" aria-label="Select review text column"></select>
           </div>
-          <div id="loadingBox" class="loading hidden">
-            <div class="spinner"></div>
-            <span id="loadingText">Analyzing reviews...</span>
+          <div id="loadingBox" class="loading hidden" role="status" aria-live="polite">
+            <div class="spinner" aria-hidden="true"></div>
+            <span id="loadingText">Analyzing reviews…</span>
           </div>
-          <div id="errorBox" class="error-box hidden"></div>
+          <div id="errorBox" class="error-box hidden" role="alert"></div>
         </article>
+
       </section>
 
-      <section id="emptyState" class="empty-state-card">
-        <div class="empty-visual">
+      <!-- Empty State -->
+      <section id="emptyState" class="empty-state-card" aria-label="No data loaded">
+        <div class="empty-visual" aria-hidden="true">
           <span></span><span></span><span></span><span></span>
         </div>
-        <div>
+        <div class="empty-text">
           <h2 id="emptyTitle">No analysis yet</h2>
           <p id="emptySubtitle">Upload an Excel file and click Run Analysis to unlock the dashboard.</p>
         </div>
       </section>
 
-      <section id="dashboardArea" class="dashboard-area hidden">
-        <section id="overview" class="tab-panel active"></section>
-        <section id="performance" class="tab-panel"></section>
-        <section id="trends" class="tab-panel"></section>
-        <section id="aspects" class="tab-panel"></section>
-        <section id="praise" class="tab-panel"></section>
-        <section id="problems" class="tab-panel"></section>
-        <section id="branches" class="tab-panel"></section>
-        <section id="reviews" class="tab-panel"></section>
-        <section id="actions" class="tab-panel"></section>
-        <section id="branchAnalysis" class="tab-panel"></section>
-        <section id="nps" class="tab-panel"></section>
-        <section id="export" class="tab-panel"></section>
+      <!-- Dashboard Panels -->
+      <section id="dashboardArea" class="dashboard-area hidden" aria-label="Analytics dashboard">
+        <section id="overview"       class="tab-panel active"  aria-label="Overview"></section>
+        <section id="performance"    class="tab-panel"         aria-label="Performance"></section>
+        <section id="trends"         class="tab-panel"         aria-label="Trends"></section>
+        <section id="aspects"        class="tab-panel"         aria-label="Aspects"></section>
+        <section id="praise"         class="tab-panel"         aria-label="Sentiment"></section>
+        <section id="problems"       class="tab-panel"         aria-label="Problems"></section>
+        <section id="branches"       class="tab-panel"         aria-label="Branches"></section>
+        <section id="reviews"        class="tab-panel"         aria-label="Review History"></section>
+        <section id="actions"        class="tab-panel"         aria-label="Recommendations"></section>
+        <section id="branchAnalysis" class="tab-panel"         aria-label="Branch SQI Analysis"></section>
+        <section id="nps"            class="tab-panel"         aria-label="NPS"></section>
+        <section id="export"         class="tab-panel"         aria-label="Export"></section>
       </section>
+
     </main>
   </div>
 
-  <div id="chartTooltip" class="chart-tooltip hidden"></div>
+  <!-- Chart Tooltip -->
+  <div id="chartTooltip" class="chart-tooltip hidden" role="tooltip" aria-hidden="true"></div>
+
   <script src="/static/script.js?v=20260514-branch-kpis"></script>
 </body>
 </html>
